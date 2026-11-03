@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { io } from "socket.io-client";
 import {
-  Activity, ArrowRight, Bell, ChevronDown, CircleHelp, Gamepad2, Gauge,
+  Activity, ArrowRight, Bell, ChevronDown, CircleHelp, Gamepad2, Gauge, Globe,
   Hash, LayoutDashboard, LogOut, Menu, MessageCircle, Plus, Search,
   Settings, Shield, Sparkles, Users, X, Zap, Trophy, Brain, Puzzle, Compass, Joystick, PartyPopper, CarFront, Goal,
   Medal, Flame, Star, Palette, Crown, CheckCircle2, Gift, Target
@@ -112,6 +112,7 @@ export default function App() {
   const [notice, setNotice] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
+  const [browserQuery, setBrowserQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [adminStats, setAdminStats] = useState({ online: 0, rooms: 0, games: 3 });
   const [playerStats, setPlayerStats] = useState({ xp: 0, level: 1, games_played: 0, daily_claim_date: null, selected_theme: "violet" });
@@ -230,6 +231,7 @@ export default function App() {
   const nav = [
     { id: "home", label: "Overview", icon: LayoutDashboard },
     { id: "games", label: "Games & lobbies", icon: Gamepad2 },
+    { id: "browser", label: "Web browser", icon: Globe },
     { id: "rewards", label: "Rewards & levels", icon: Trophy },
     { id: "chat", label: "Community chat", icon: MessageCircle },
     { id: "friends", label: "People", icon: Users },
@@ -479,6 +481,7 @@ export default function App() {
       <div className="page-content">
         {notice && <div className="notice"><Sparkles size={16}/>{notice}<button onClick={() => setNotice("")}><X size={15}/></button></div>}
         {page === "home" && <HomePage username={username} online={online} rooms={rooms} setPage={setPage} setNotice={setNotice}/>}
+        {page === "browser" && <DuckDuckGoPage query={browserQuery} setQuery={setBrowserQuery}/>}
         {page === "games" && <GamesPage socket={socket} username={username} session={session} rooms={rooms} myLobby={myLobby} lobbyCode={lobbyCode} setLobbyCode={setLobbyCode} lobbyError={lobbyError} createLobby={createLobby} joinLobby={joinLobby} leaveLobby={leaveLobby} startLobby={startLobby} recordGame={recordGame}/>}
         {page === "rewards" && <RewardsPage username={username} stats={playerStats} activity={activityFeed} leaderboard={playerLeaderboard} loading={rewardsLoading} onClaimDaily={claimDailyChallenge} onChooseTheme={chooseTheme}/>}
         {page === "chat" && <ChatPage username={username} online={online} messages={messages} channel={channel} setChannel={setChannel} messageText={messageText} setMessageText={setMessageText} sendMessage={sendChatMessage} chatFile={chatFile} setChatFile={setChatFile} replyTo={replyTo} setReplyTo={setReplyTo} reactToMessage={reactToMessage} editMessage={editMessage} deleteMessage={deleteMessage} reportMessage={reportMessage}/>}
@@ -572,6 +575,27 @@ function GamesPage({ rooms, myLobby, lobbyCode, setLobbyCode, lobbyError, create
     {embeddedGame&&<div className="external-game-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setEmbeddedGame(null)}}><section className="external-game-shell"><header><div><b><EmbeddedIcon size={16}/> {embeddedGame.name}</b><span>External game · {embeddedGame.mode==="external-multiplayer"?"multiplayer":"single-player"}</span></div><div className="external-game-actions"><button className="secondary-btn" onClick={()=>document.getElementById("nexus-external-game")?.requestFullscreen?.()}>Fullscreen</button><button className="quiet-btn" onClick={()=>setEmbeddedGame(null)}>Close</button></div></header><iframe id="nexus-external-game" src={embeddedGame.externalUrl} title={embeddedGame.name} allow="fullscreen; autoplay; gamepad" allowFullScreen referrerPolicy="strict-origin-when-cross-origin"/><p>Having trouble loading? <a href={embeddedGame.externalUrl} target="_blank" rel="noreferrer">Open in a new tab</a>.</p></section></div>}
     {selected&&<div className="game-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setSelected(null)}}><section className="game-modal"><button className="quiet-btn" onClick={()=>setSelected(null)}>Close</button><div className="game-modal-icon">{selected.icon}</div><div className="eyebrow">{selected.type} · {selected.players}</div><h2>{selected.name}</h2><p>{selected.description}</p><p className="muted">{selected.mode==="multiplayer"?"Create a lobby and invite friends with its code.":selected.mode==="single"?"A single-player game.":"This game is still being prepared for NEXUS."}</p>{selected.mode==="multiplayer"&&<button className="primary-btn" onClick={()=>{createLobby(selected.name);setSelected(null)}}>Play with friends <ArrowRight size={15}/></button>}</section></div>}
    </div>;
+}
+
+function DuckDuckGoPage({query,setQuery}) {
+  function searchWeb(e) {
+    e.preventDefault();
+    const term=query.trim();
+    if(!term)return;
+    window.open("https://duckduckgo.com/?q="+encodeURIComponent(term)," _blank","noopener,noreferrer");
+  }
+  return <section className="social-panel" style={{maxWidth:900,margin:"0 auto",padding:28}}>
+    <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
+      <div style={{width:46,height:46,borderRadius:14,display:"grid",placeItems:"center",background:"#de6b24",color:"#fff"}}><Globe size={25}/></div>
+      <div><div className="eyebrow">NEXUS WEB</div><h1 style={{margin:0}}>DuckDuckGo</h1></div>
+    </div>
+    <p className="muted" style={{margin:"12px 0 22px"}}>Search the web with DuckDuckGo. Results open in a new browser tab so you can browse without leaving NEXUS.</p>
+    <form onSubmit={searchWeb} style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+      <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search the web..." aria-label="Search DuckDuckGo" style={{flex:"1 1 260px",minWidth:0,padding:"14px 16px",borderRadius:10,border:"1px solid var(--border, #39415b)",background:"var(--panel, #111827)",color:"inherit",fontSize:16}}/>
+      <button className="primary-btn" type="submit" disabled={!query.trim()}><Search size={16}/> Search DuckDuckGo</button>
+    </form>
+    <button className="secondary-btn" type="button" style={{marginTop:14}} onClick={()=>window.open("https://duckduckgo.com/","_blank","noopener,noreferrer")}>Open DuckDuckGo homepage <ArrowRight size={15}/></button>
+  </section>;
 }
 
 function MiniGame({name}) {
