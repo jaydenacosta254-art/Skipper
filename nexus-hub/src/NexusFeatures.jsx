@@ -6,7 +6,6 @@ const tabs = [
   ["games","My games",Gamepad2],["missions","Missions",Target],["community","Community",MessageSquare],
   ["compete","Compete",Trophy],["customize","Customize",Palette],["stats","Statistics",BarChart3]
 ];
-const games = ["Retro Bowl","Eaglercraft 1.8.8","Roof Top Run","Chicken Royale","OpenGuessr","Basket Bros","Neon Racers","Trivia Clash","Party Arena"];
 const missions = [
   {id:"play1",title:"Warm up",detail:"Open a game today",xp:25},
   {id:"favorite1",title:"Build your collection",detail:"Favorite one game",xp:20},
@@ -22,10 +21,11 @@ const cosmetics = [
   {id:"title_star",name:"Community Star title",price:300,kind:"title",value:"Community Star"},
   {id:"chat_glow",name:"Glow Chat Accent",price:180,kind:"chat",value:"glow"}
 ];
-export default function NexusFeatures({session,username,stats,onlineCount,isAdmin=false,setNotice=()=>{}}) {
+export default function NexusFeatures({session,username,stats,onlineCount,games:availableGames=[],isAdmin=false,setNotice=()=>{}}) {
   const [tab,setTab]=useState("games"),[favorites,setFavorites]=useState([]),[posts,setPosts]=useState([]),[polls,setPolls]=useState([]),[events,setEvents]=useState([]),[tournaments,setTournaments]=useState([]),[reviews,setReviews]=useState([]),[owned,setOwned]=useState([]),[profileRows,setProfileRows]=useState([]),[draft,setDraft]=useState(""),[pollDraft,setPollDraft]=useState({question:"",a:"",b:""}),[eventDraft,setEventDraft]=useState({title:"",date:""}),[reviewDraft,setReviewDraft]=useState({game:"Retro Bowl",rating:5,body:""}),[compare,setCompare]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState("");
   const userId=session?.user?.id;
   const xp=stats?.xp||0;
+  const games=availableGames.map(game=>typeof game==="string"?game:game?.name).filter(Boolean);
   const level=Math.floor(xp/100)+1;
   const completed=useMemo(()=>{try{return JSON.parse(localStorage.getItem("nexus_missions_"+(userId||"guest"))||"[]")}catch{return[]}},[userId]);
   const [done,setDone]=useState(completed);
