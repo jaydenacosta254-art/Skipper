@@ -17,6 +17,11 @@ const starterGames = [
 export default function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [guestProfile, setGuestProfile] = useState(() => { try { return JSON.parse(localStorage.getItem("nexus_guest_profile") || "null"); } catch { return null; } });
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileDraft, setProfileDraft] = useState({ username: "", avatar_url: "", bio: "", status: "" });
+  const [profileBusy, setProfileBusy] = useState(false);
+  const [profileError, setProfileError] = useState("");
   const [authMode, setAuthMode] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,7 +45,7 @@ export default function App() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [adminStats, setAdminStats] = useState({ online: 0, rooms: 0, games: 3 });
 
-  const username = profile?.username || guest || "Guest";
+  const username = profile?.username || guestProfile?.username || guest || "Guest";
   const isAdmin = profile?.role === "admin";
 
   useEffect(() => {
@@ -55,7 +60,7 @@ export default function App() {
     let cancelled = false;
     async function loadProfile() {
       const user = session.user;
-      const { data } = await supabase.from("profiles").select("username, role").eq("id", user.id).maybeSingle();
+      const { data } = await supabase.from("profiles").select("username, role, avatar_url, bio, status").eq("id", user.id).maybeSingle();
       if (data) {
         if (!cancelled) setProfile(data);
         return;
@@ -63,7 +68,7 @@ export default function App() {
       const metadataName = String(user.user_metadata?.username || user.email?.split("@")[0] || "member").trim().slice(0, 24);
       const cleanName = metadataName.length >= 2 ? metadataName : `member_${user.id.slice(0, 8)}`;
       let { data: created, error } = await supabase.from("profiles").upsert(
-        { id: user.id, username: cleanName, role: "member" }, { onConflict: "id" }
+        { id: user.id, username: cleanName, role: "member", avatar_url: null, bio: "", status: "Available" }, { onConflict: "id" }
       ).select("username, role").single();
       if (error) {
         const fallbackName = `${cleanName.slice(0, 15)}_${user.id.slice(0, 6)}`;
@@ -135,6 +140,27 @@ export default function App() {
     finally { setAuthBusy(false); }
   }
 
+  function openProfileEditor() {
+    setProfileDraft({ username, avatar_url: profile?.avatar_url || guestProfile?.avatar_url || "", bio: profile?.bio || guestProfile?.bio || "", status: profile?.status || guestProfile?.status || "Available" });
+    setProfileError(""); setProfileOpen(true);
+  }
+  async function saveProfile(e) {
+    e.preventDefault(); setProfileError("");
+    const clean = { username: profileDraft.username.trim().slice(0,24), avatar_url: profileDraft.avatar_url.trim(), bio: profileDraft.bio.trim().slice(0,160), status: profileDraft.status.trim().slice(0,40) || "Available" };
+    if (clean.username.length < 2) return setProfileError("Username must be at least 2 characters.");
+    if (session?.user && supabase) {
+      setProfileBusy(true);
+      const { data, error } = await supabase.from("profiles").update(clean).eq("id", session.user.id).select("username, role, avatar_url, bio, status").single();
+      setProfileBusy(false);
+      if (error) return setProfileError(error.message);
+      setProfile(data);
+    } else {
+      const next = { ...clean };
+      setGuestProfile(next); localStorage.setItem("nexus_guest_profile", JSON.stringify(next));
+      if (guest) { localStorage.setItem("nexus_guest", clean.username); setGuest(clean.username); }
+    }
+    setProfileOpen(false); setNotice("Your profile has been updated.");
+  }
   function enterGuest(e) {
     e.preventDefault();
     const name = usernameInput.trim().slice(0, 24);
@@ -168,11 +194,11 @@ export default function App() {
       <div className="workspace-card"><div className="workspace-icon">N</div><div><b>Nexus Community</b><small>Free community</small></div><span className="online-dot"/></div>
       <div className="nav-label">MENU</div>
       <nav>{nav.map(item => <button key={item.id} className={`nav-item ${page === item.id ? "active" : ""}`} onClick={() => { setPage(item.id); setMobileNav(false); }}><item.icon size={18}/><span>{item.label}</span>{item.id === "chat" && <i className="nav-ping"/>}</button>)}</nav>
-      <div className="sidebar-bottom"><div className="help-card"><div className="help-icon"><CircleHelp size={17}/></div><b>Need a hand?</b><p>Explore the community and find your next game.</p><button onClick={() => setPage("games")}>Explore games <ArrowRight size={14}/></button></div><div className="user-card"><div className="avatar">{initials}</div><div className="user-meta"><b>{username}</b><small>{isAdmin ? "Administrator" : "Community member"}</small></div><button className="icon-btn" title="Sign out" onClick={signOut}><LogOut size={17}/></button></div></div>
+      <div className="sidebar-bottom"><div className="help-card"><div className="help-icon"><CircleHelp size={17}/></div><b>Need a hand?</b><p>Explore the community and find your next game.</p><button onClick={() => setPage("games")}>Explore games <ArrowRight size={14}/></button></div><div className="user-card"><button className="profile-trigger" onClick={openProfileEditor} title="Edit your profile"><ProfileAvatar username={username} url={profile?.avatar_url || guestProfile?.avatar_url}/><span className="user-meta"><b>{username}</b><small>{isAdmin ? "Administrator" : "Community member"}</small></span></button><button className="icon-btn" title="Sign out" onClick={signOut}><LogOut size={17}/></button></div></div>
     </aside>
     {mobileNav && <div className="scrim" onClick={() => setMobileNav(false)}/>}
     <main className="main-area">
-      <header className="topbar"><button className="icon-btn mobile-menu" onClick={() => setMobileNav(true)}><Menu/></button><div className="crumb">Workspace <span>/</span> <b>{nav.find(n => n.id === page)?.label || "Overview"}</b></div><div className="top-actions"><div className="search-box"><Search size={16}/><input placeholder="Search Nexus..." onKeyDown={e => e.key === "Enter" && setNotice("Search is ready to connect to your content index.")}/><kbd>⌘ K</kbd></div><div className="notification-wrap"><button className="icon-btn notification" type="button" title="Notifications" aria-label="Notifications" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen(open => !open)}><Bell size={18}/><i/></button>{notificationsOpen && <div className="notification-popover" role="dialog" aria-label="Notifications"><div className="notification-popover-head"><b>Notifications</b><button type="button" onClick={() => setNotificationsOpen(false)} aria-label="Close notifications"><X size={15}/></button></div><div className="notification-empty"><Bell size={22}/><b>You are all caught up</b><span>New notifications will appear here.</span></div></div>}</div><div className="avatar small">{initials}</div></div></header>
+      <header className="topbar"><button className="icon-btn mobile-menu" onClick={() => setMobileNav(true)}><Menu/></button><div className="crumb">Workspace <span>/</span> <b>{nav.find(n => n.id === page)?.label || "Overview"}</b></div><div className="top-actions"><div className="search-box"><Search size={16}/><input placeholder="Search Nexus..." onKeyDown={e => e.key === "Enter" && setNotice("Search is ready to connect to your content index.")}/><kbd>⌘ K</kbd></div><div className="notification-wrap"><button className="icon-btn notification" type="button" title="Notifications" aria-label="Notifications" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen(open => !open)}><Bell size={18}/><i/></button>{notificationsOpen && <div className="notification-popover" role="dialog" aria-label="Notifications"><div className="notification-popover-head"><b>Notifications</b><button type="button" onClick={() => setNotificationsOpen(false)} aria-label="Close notifications"><X size={15}/></button></div><div className="notification-empty"><Bell size={22}/><b>You are all caught up</b><span>New notifications will appear here.</span></div></div>}</div><button className="top-profile-button" onClick={openProfileEditor} title="Edit your profile"><ProfileAvatar username={username} url={profile?.avatar_url || guestProfile?.avatar_url} small/></button></div></header>
       <div className="page-content">
         {notice && <div className="notice"><Sparkles size={16}/>{notice}<button onClick={() => setNotice("")}><X size={15}/></button></div>}
         {page === "home" && <HomePage username={username} online={online} rooms={rooms} setPage={setPage} setNotice={setNotice}/>}
@@ -182,6 +208,29 @@ export default function App() {
         {page === "admin" && (isAdmin ? <AdminPage stats={adminStats} online={online}/> : <div className="empty-state"><Shield/><h2>Admin access required</h2><p>Your account does not have administrator permissions.</p></div>)}
       </div>
     </main>
+  </div>;
+}
+
+function ProfileAvatar({ username, url, small = false }) {
+  const initials = (username || "G").slice(0,1).toUpperCase();
+  return url ? <img className={`avatar profile-avatar-image ${small ? "small" : ""}`} src={url} alt={`${username}'s profile`} onError={e => { e.currentTarget.style.display = "none"; }}/> : <div className={`avatar ${small ? "small" : ""}`}>{initials}</div>;
+}
+
+function ProfileEditor({ draft, setDraft, onSave, onClose, busy, error, username, avatarUrl }) {
+  const change = (key, value) => setDraft(old => ({ ...old, [key]: value }));
+  return <div className="profile-modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+    <section className="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-editor-title">
+      <div className="profile-modal-head"><div><div className="eyebrow">MAKE IT YOURS</div><h2 id="profile-editor-title">Edit profile</h2></div><button className="icon-btn" type="button" onClick={onClose} aria-label="Close"><X/></button></div>
+      <div className="profile-preview"><ProfileAvatar username={draft.username || username} url={draft.avatar_url || avatarUrl}/><div><b>{draft.username || username}</b><small>{draft.status || "Available"}</small></div></div>
+      <form className="profile-form" onSubmit={onSave}>
+        <label>Username<input value={draft.username} onChange={e => change("username", e.target.value)} maxLength={24} minLength={2} required/></label>
+        <label>Profile picture URL<input type="url" value={draft.avatar_url} onChange={e => change("avatar_url", e.target.value)} placeholder="https://example.com/photo.jpg"/><small>Paste a direct link to an image. Leave blank to use your initials.</small></label>
+        <label>Status<input value={draft.status} onChange={e => change("status", e.target.value)} maxLength={40} placeholder="Available"/></label>
+        <label>About me<textarea value={draft.bio} onChange={e => change("bio", e.target.value)} maxLength={160} rows={3} placeholder="Tell the community a little about yourself..."/></label>
+        {error && <div className="form-error">{error}</div>}
+        <div className="profile-form-actions"><button className="quiet-btn" type="button" onClick={onClose}>Cancel</button><button className="primary-btn" disabled={busy}>{busy ? "Saving..." : "Save changes"} <ArrowRight size={16}/></button></div>
+      </form>
+    </section>
   </div>;
 }
 
