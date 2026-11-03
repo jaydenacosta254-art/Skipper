@@ -579,56 +579,19 @@ function GamesPage({ rooms, myLobby, lobbyCode, setLobbyCode, lobbyError, create
 }
 
 function GoogleSearchPage() {
-  const [scriptReady, setScriptReady] = useState(false);
-  const [scriptError, setScriptError] = useState(false);
-  const mountRef = React.useRef(null);
-
-  useEffect(() => {
-    if (!GOOGLE_CSE_ID || !mountRef.current) return;
-    let cancelled = false;
-    window.__gcse = window.__gcse || {};
-    const existing = document.querySelector('script[data-nexus-google-cse="true"]');
-    const renderSearch = () => {
-      if (cancelled || !mountRef.current) return;
-      if (window.google?.search?.cse?.element?.go) {
-        window.google.search.cse.element.go(mountRef.current);
-        setScriptReady(true);
-      }
-    };
-    if (window.google?.search?.cse?.element?.go) {
-      renderSearch();
-    } else if (existing) {
-      existing.addEventListener("load", renderSearch, { once: true });
-      existing.addEventListener("error", () => setScriptError(true), { once: true });
-    } else {
-      const script = document.createElement("script");
-      script.async = true;
-      script.src = "https://cse.google.com/cse.js?cx=" + encodeURIComponent(GOOGLE_CSE_ID);
-      script.dataset.nexusGoogleCse = "true";
-      script.onload = renderSearch;
-      script.onerror = () => setScriptError(true);
-      document.head.appendChild(script);
-    }
-    return () => { cancelled = true; };
-  }, []);
+  const [query, setQuery] = useState("");
 
   return <section className="social-panel nexus-web-search" style={{maxWidth:1100,margin:"0 auto",padding:24}}>
     <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
-      <div style={{width:46,height:46,borderRadius:14,display:"grid",placeItems:"center",background:"#4285f4",color:"#fff"}}><Globe size={25}/></div>
-      <div><div className="eyebrow">NEXUS WEB</div><h1 style={{margin:0}}>Web search</h1></div>
+      <div style={{width:46,height:46,borderRadius:14,display:"grid",placeItems:"center",background:"#de5833",color:"#fff",fontWeight:800,fontSize:22}}>D</div>
+      <div><div className="eyebrow">NEXUS WEB</div><h1 style={{margin:0}}>DuckDuckGo Search</h1></div>
     </div>
-    <p className="muted" style={{margin:"12px 0 20px"}}>Search the web and view results right here inside NEXUS.</p>
-    {!GOOGLE_CSE_ID ? <div className="empty-small" style={{padding:20}}>
-      <h3>One quick setup step</h3>
-      <p>Your Google search engine is connected. Configure its included websites in the Google control panel. New engines can search up to 50 selected domains rather than the entire web.</p>
-      <a href="https://programmablesearchengine.google.com/controlpanel/all" target="_blank" rel="noreferrer">Open Google Programmable Search Engine</a>
-      <p className="muted">Search results will appear inside NEXUS.</p>
-    </div> : <div ref={mountRef} className="nexus-google-search">
-      <div className="gcse-search"></div>
-      {!scriptReady && !scriptError && <p className="muted">Loading search…</p>}
-      {scriptError && <p className="form-error">Google search could not load. Refresh the page and try again.</p>}
-    </div>}
-    <p className="muted" style={{fontSize:12,marginTop:16}}>Search is powered by Google Programmable Search. Results are displayed within NEXUS.</p>
+    <p className="muted" style={{margin:"12px 0 20px"}}>Search the web with DuckDuckGo.</p>
+    <form action="https://duckduckgo.com/" method="GET" target="_blank" rel="noreferrer" style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+      <input aria-label="Search the web" name="q" type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search the web…" required style={{flex:"1 1 280px",minWidth:0,padding:"14px 16px",borderRadius:12,border:"1px solid var(--border)",background:"var(--input-bg, transparent)",color:"inherit",fontSize:16}}/>
+      <button type="submit" disabled={!query.trim()} style={{padding:"12px 22px",borderRadius:12,border:0,background:"#de5833",color:"#fff",fontWeight:700,cursor:"pointer"}}>Search</button>
+    </form>
+    <p className="muted" style={{fontSize:12,marginTop:16}}>DuckDuckGo search results open in a new tab. DuckDuckGo does not permit its search pages to be embedded inside other websites.</p>
   </section>;
 }
 
