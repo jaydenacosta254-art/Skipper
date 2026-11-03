@@ -37,6 +37,14 @@ export default function App() {
   const [online, setOnline] = useState([]);
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState("");
+  const [chatFile, setChatFile] = useState(null);
+  const [replyTo, setReplyTo] = useState(null);
+  const [friendRequests, setFriendRequests] = useState([]);
+  const [dmTarget, setDmTarget] = useState(null);
+  const [dmMessages, setDmMessages] = useState([]);
+  const [dmText, setDmText] = useState("");
+  const [notifications, setNotifications] = useState([]);
+  const [reports, setReports] = useState([]);
   const [channel, setChannel] = useState("general");
   const [rooms, setRooms] = useState([]);
   const [myLobby, setMyLobby] = useState(null);
@@ -90,7 +98,10 @@ export default function App() {
     setSocket(s);
     s.on("connect", () => s.emit("presence:join", { username }));
     s.on("presence:update", setOnline);
-    s.on("chat:message", m => setMessages(old => [...old.slice(-99), m]));
+    s.on("chat:message", m => setMessages(old => [...old.filter(x => x.id !== m.id).slice(-99), m]));
+    s.on("chat:history", history => setMessages(history || []));
+    s.on("message:updated", m => setMessages(old => old.map(x => x.id === m.id ? m : x)));
+    s.on("message:deleted", ({ id }) => setMessages(old => old.filter(x => x.id !== id)));
     s.on("chat:system", m => setMessages(old => [...old, { ...m, system: true }]));
     s.on("lobby:list", setRooms);
     s.on("lobby:created", lobby => { setMyLobby(lobby); setPage("games"); });
@@ -102,6 +113,19 @@ export default function App() {
   }, [username]);
 
   useEffect(() => { if (socket) socket.emit("chat:join", { channel }); }, [socket, channel]);
+
+  useEffect(() => {
+    if (!session?.user || !supabase) return;
+    const uid = session.user.id;
+    Promise.all([
+      supabase.from("friend_requests").select("*").or("sender_id.eq." + uid + ",receiver_id.eq." + uid).order("created_at", { ascending: false }),
+      supabase.from("nexus_notifications").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(30)
+    ]).then(([friendsResult, notesResult]) => {
+      setFriendRequests(friendsResult.data || []);
+      setNotifications(notesResult.data || []);
+    });
+    if (profile?.role === "admin") supabase.from("chat_reports").select("*").eq("status", "open").order("created_at", { ascending: false }).then(({data}) => setReports(data || []));
+  }, [session, profile]);
 
   const initials = username.slice(0, 1).toUpperCase();
   const nav = [
@@ -180,6 +204,76 @@ export default function App() {
     socket.emit("chat:message", { channel, username, text: messageText });
     setMessageText("");
   }
+  async function sendChatMessage(e) {
+    e.preventDefault();
+    if ((!messageText.trim() && !chatFile) || !socket) return;
+    let attachment = null;
+    if (chatFile) {
+      if (!session?.user || !supabase) return setNotice("Sign in to upload chat attachments.");
+      if (chatFile.size > 10 * 1024 * 1024) return setNotice("Attachments must be 10 MB or smaller.");
+      const safeName = chatFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = session.user.id + "/" + Date.now() + "-" + safeName;
+      const { error } = await supabase.storage.from("chat-uploads").upload(path, chatFile);
+      if (error) return setNotice(error.message);
+      attachment = { name: chatFile.name, url: supabase.storage.from("chat-uploads").getPublicUrl(path).data.publicUrl };
+    }
+    socket.emit("chat:message", { channel, username, text: messageText.trim(), attachment, replyTo: replyTo ? { id: replyTo.id, username: replyTo.username, text: replyTo.text } : null });
+    setMessageText(""); setChatFile(null); setReplyTo(null);
+  }
+  function reactToMessage(messageId, emoji) { socket?.emit("message:react", { channel, messageId, emoji, username }); }
+  function editMessage(message) {
+    const next = window.prompt("Edit your message:", message.text);
+    if (next?.trim()) socket?.emit("message:edit", { channel, messageId: message.id, username, text: next });
+  }
+  function deleteMessage(message) {
+    if (window.confirm("Delete this message?")) socket?.emit("message:delete", { channel, messageId: message.id, username });
+  }
+  async function addFriend(targetName) {
+    if (!session?.user || !supabase) return setNotice("Sign in to add friends.");
+    const { data: target } = await supabase.from("profiles").select("id,username").eq("username", targetName).maybeSingle();
+    if (!target || target.id === session.user.id) return setNotice("That account could not be found.");
+    const { error } = await supabase.from("friend_requests").insert({ sender_id: session.user.id, receiver_id: target.id });
+    if (error) return setNotice(error.message);
+    await supabase.from("nexus_notifications").insert({ user_id: target.id, actor_id: session.user.id, kind: "friend_request", body: username + " sent you a friend request." });
+    setNotice("Friend request sent to " + target.username + ".");
+  }
+  async function respondFriend(request, accept) {
+    const { error } = await supabase.from("friend_requests").update({ status: accept ? "accepted" : "declined" }).eq("id", request.id);
+    if (error) return setNotice(error.message);
+    setFriendRequests(old => old.map(x => x.id === request.id ? { ...x, status: accept ? "accepted" : "declined" } : x));
+    if (accept) await supabase.from("nexus_notifications").insert({ user_id: request.sender_id, actor_id: session.user.id, kind: "friend_accepted", body: username + " accepted your friend request." });
+  }
+  async function openDM(userId, displayName) {
+    setDmTarget({ id: userId, username: displayName });
+    const uid = session.user.id;
+    const { data, error } = await supabase.from("direct_messages").select("*").or("and(sender_id.eq." + uid + ",receiver_id.eq." + userId + "),and(sender_id.eq." + userId + ",receiver_id.eq." + uid + ")").order("created_at");
+    if (error) setNotice(error.message); else setDmMessages(data || []);
+  }
+  async function sendDM(e) {
+    e.preventDefault();
+    if (!dmTarget || !dmText.trim()) return;
+    const { data, error } = await supabase.from("direct_messages").insert({ sender_id: session.user.id, receiver_id: dmTarget.id, body: dmText.trim() }).select().single();
+    if (error) return setNotice(error.message);
+    setDmMessages(old => [...old, data]); setDmText("");
+    await supabase.from("nexus_notifications").insert({ user_id: dmTarget.id, actor_id: session.user.id, kind: "direct_message", body: "New message from " + username + "." });
+  }
+  async function markNotificationRead(note) {
+    await supabase.from("nexus_notifications").update({ read: true }).eq("id", note.id);
+    setNotifications(old => old.map(n => n.id === note.id ? { ...n, read: true } : n));
+  }
+  async function reportMessage(message) {
+    if (!session?.user || !supabase) return setNotice("Sign in to report messages.");
+    const reason = window.prompt("Why are you reporting this message?");
+    if (!reason?.trim()) return;
+    const { error } = await supabase.from("chat_reports").insert({ reporter_id: session.user.id, message_id: message.id, channel, reported_username: message.username, message_text: message.text || "", reason: reason.trim() });
+    setNotice(error ? error.message : "Report submitted to moderators.");
+  }
+  async function updateReport(report, status) {
+    const { error } = await supabase.from("chat_reports").update({ status }).eq("id", report.id);
+    if (error) return setNotice(error.message);
+    setReports(old => old.filter(r => r.id !== report.id));
+  }
+
   function createLobby(game) { setLobbyError(""); socket?.emit("lobby:create", { username, game }); }
   function joinLobby(code) { setLobbyError(""); socket?.emit("lobby:join", { username, code }); }
   function leaveLobby() { socket?.emit("lobby:leave", { username, code: myLobby?.code }); setMyLobby(null); }
@@ -201,14 +295,14 @@ export default function App() {
     </aside>
     {mobileNav && <div className="scrim" onClick={() => setMobileNav(false)}/>}
     <main className="main-area">
-      <header className="topbar"><button className="icon-btn mobile-menu" onClick={() => setMobileNav(true)}><Menu/></button><div className="crumb">Workspace <span>/</span> <b>{nav.find(n => n.id === page)?.label || "Overview"}</b></div><div className="top-actions"><div className="search-box"><Search size={16}/><input placeholder="Search Nexus..." onKeyDown={e => e.key === "Enter" && setNotice("Search is ready to connect to your content index.")}/><kbd>⌘ K</kbd></div><div className="notification-wrap"><button className="icon-btn notification" type="button" title="Notifications" aria-label="Notifications" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen(open => !open)}><Bell size={18}/><i/></button>{notificationsOpen && <div className="notification-popover" role="dialog" aria-label="Notifications"><div className="notification-popover-head"><b>Notifications</b><button type="button" onClick={() => setNotificationsOpen(false)} aria-label="Close notifications"><X size={15}/></button></div><div className="notification-empty"><Bell size={22}/><b>You are all caught up</b><span>New notifications will appear here.</span></div></div>}</div><button className="top-profile-button" onClick={openProfileEditor} title="Edit your profile"><ProfileAvatar username={username} url={profile?.avatar_url || guestProfile?.avatar_url} small/></button></div></header>
+      <header className="topbar"><button className="icon-btn mobile-menu" onClick={() => setMobileNav(true)}><Menu/></button><div className="crumb">Workspace <span>/</span> <b>{nav.find(n => n.id === page)?.label || "Overview"}</b></div><div className="top-actions"><div className="search-box"><Search size={16}/><input placeholder="Search Nexus..." onKeyDown={e => e.key === "Enter" && setNotice("Search is ready to connect to your content index.")}/><kbd>⌘ K</kbd></div><div className="notification-wrap"><button className="icon-btn notification" type="button" title="Notifications" aria-label="Notifications" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen(open => !open)}><Bell size={18}/><i/></button>{notificationsOpen && <div className="notification-popover" role="dialog" aria-label="Notifications"><div className="notification-popover-head"><b>Notifications</b><button type="button" onClick={() => setNotificationsOpen(false)} aria-label="Close notifications"><X size={15}/></button></div><div className="notification-items">{notifications.length ? notifications.map(n => <button key={n.id} className={"notification-item " + (n.read ? "read" : "")} onClick={() => markNotificationRead(n)}><b>{n.kind.replace("_", " ")}</b><span>{n.body}</span><small>{new Date(n.created_at).toLocaleString()}</small></button>) : <div className="notification-empty"><Bell size={22}/><b>You are all caught up</b><span>New notifications will appear here.</span></div>}</div></div>}</div><button className="top-profile-button" onClick={openProfileEditor} title="Edit your profile"><ProfileAvatar username={username} url={profile?.avatar_url || guestProfile?.avatar_url} small/></button></div></header>
       <div className="page-content">
         {notice && <div className="notice"><Sparkles size={16}/>{notice}<button onClick={() => setNotice("")}><X size={15}/></button></div>}
         {page === "home" && <HomePage username={username} online={online} rooms={rooms} setPage={setPage} setNotice={setNotice}/>}
         {page === "games" && <GamesPage rooms={rooms} myLobby={myLobby} lobbyCode={lobbyCode} setLobbyCode={setLobbyCode} lobbyError={lobbyError} createLobby={createLobby} joinLobby={joinLobby} leaveLobby={leaveLobby} startLobby={startLobby}/>}
-        {page === "chat" && <ChatPage username={username} online={online} messages={messages} channel={channel} setChannel={setChannel} messageText={messageText} setMessageText={setMessageText} sendMessage={sendMessage}/>}
-        {page === "friends" && <PeoplePage online={online}/>}
-        {page === "admin" && (isAdmin ? <AdminPage stats={adminStats} online={online}/> : <div className="empty-state"><Shield/><h2>Admin access required</h2><p>Your account does not have administrator permissions.</p></div>)}
+        {page === "chat" && <ChatPage username={username} online={online} messages={messages} channel={channel} setChannel={setChannel} messageText={messageText} setMessageText={setMessageText} sendMessage={sendChatMessage} chatFile={chatFile} setChatFile={setChatFile} replyTo={replyTo} setReplyTo={setReplyTo} reactToMessage={reactToMessage} editMessage={editMessage} deleteMessage={deleteMessage} reportMessage={reportMessage}/>}
+        {page === "friends" && <PeoplePage online={online} session={session} friendRequests={friendRequests} addFriend={addFriend} respondFriend={respondFriend} openDM={openDM} dmTarget={dmTarget} dmMessages={dmMessages} dmText={dmText} setDmText={setDmText} sendDM={sendDM} closeDM={() => setDmTarget(null)}/>}
+        {page === "admin" && (isAdmin ? <AdminPage stats={adminStats} online={online} reports={reports} updateReport={updateReport}/> : <div className="empty-state"><Shield/><h2>Admin access required</h2><p>Your account does not have administrator permissions.</p></div>)}
       </div>
     </main>
     {profileOpen && <ProfileEditor draft={profileDraft} setDraft={setProfileDraft} onSave={saveProfile} onClose={() => setProfileOpen(false)} busy={profileBusy} error={profileError} file={profileFile} setFile={setProfileFile} username={username} avatarUrl={profile?.avatar_url || guestProfile?.avatar_url}/>}
