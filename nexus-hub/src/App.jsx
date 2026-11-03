@@ -48,7 +48,7 @@ const starterGames = [
     color: "green",
     icon: "⛏️",
     description: "Explore, build, and play a Minecraft-style browser world.",
-    openUrl: "https://eaglercraft.com/play?version=1.8.8"
+    openUrl: "https://eaglercraft.q13x.com/1.8.8_2/js/"
   },
   {
     name: "Basket Bros",
