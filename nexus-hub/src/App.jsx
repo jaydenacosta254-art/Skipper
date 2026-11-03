@@ -243,14 +243,6 @@ export default function App() {
   }, [session, profile]);
 
   const initials = username.slice(0, 1).toUpperCase();
-  const searchTerm = globalSearch.trim().toLowerCase();
-  const searchResults = searchTerm ? [
-    ...nav.filter(item => item.label.toLowerCase().includes(searchTerm)).map(item => ({type:"Section",title:item.label,detail:"Open this section",page:item.id})),
-    ...starterGames.filter(game => (game.name+" "+game.type+" "+game.description).toLowerCase().includes(searchTerm)).map(game => ({type:"Game",title:game.name,detail:game.type+" · "+game.players,page:"games"})),
-    ...online.filter(name => name.toLowerCase().includes(searchTerm)).map(name => ({type:"Member",title:name,detail:"Currently online",page:"friends"})),
-    ...messages.filter(message => !message.system && ((message.text||message.message||"").toLowerCase().includes(searchTerm) || (message.username||"").toLowerCase().includes(searchTerm))).slice(-5).reverse().map(message => ({type:"Chat message",title:message.username||"Community member",detail:String(message.text||message.message||"").slice(0,90),page:"chat"}))
-  ].slice(0,9) : [];
-  function openSearchResult(result) { setPage(result.page); setGlobalSearch(""); setSearchOpen(false); setNotice(result.type==="Chat message" ? "Opened community chat. Search for the message there." : result.type==="Game" ? "Opened the Games hub." : result.type==="Member" ? "Opened People to view members." : "Opened "+result.title+"."); }
   const nav = [
     { id: "home", label: "Overview", icon: LayoutDashboard },
     { id: "games", label: "Games & lobbies", icon: Gamepad2 },
@@ -259,6 +251,14 @@ export default function App() {
     { id: "friends", label: "People", icon: Users },
     ...(isAdmin ? [{ id: "admin", label: "Admin panel", icon: Shield }] : [])
   ];
+  const searchTerm = globalSearch.trim().toLowerCase();
+  const searchResults = searchTerm ? [
+    ...nav.filter(item => item.label.toLowerCase().includes(searchTerm)).map(item => ({type:"Section",title:item.label,detail:"Open this section",page:item.id})),
+    ...starterGames.filter(game => (game.name+" "+game.type+" "+game.description).toLowerCase().includes(searchTerm)).map(game => ({type:"Game",title:game.name,detail:game.type+" · "+game.players,page:"games"})),
+    ...online.filter(name => name.toLowerCase().includes(searchTerm)).map(name => ({type:"Member",title:name,detail:"Currently online",page:"friends"})),
+    ...messages.filter(message => !message.system && ((message.text||message.message||"").toLowerCase().includes(searchTerm) || (message.username||"").toLowerCase().includes(searchTerm))).slice(-5).reverse().map(message => ({type:"Chat message",title:message.username||"Community member",detail:String(message.text||message.message||"").slice(0,90),page:"chat"}))
+  ].slice(0,9) : [];
+  function openSearchResult(result) { setPage(result.page); setGlobalSearch(""); setSearchOpen(false); setNotice(result.type==="Chat message" ? "Opened community chat. Search for the message there." : result.type==="Game" ? "Opened the Games hub." : result.type==="Member" ? "Opened People to view members." : "Opened "+result.title+"."); }
 
   async function submitAuth(e) {
     e.preventDefault(); setAuthError(""); setAuthSuccess(""); setAuthBusy(true);
