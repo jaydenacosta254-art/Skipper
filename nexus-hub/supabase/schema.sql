@@ -5,8 +5,15 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   username text not null unique check (char_length(username) between 2 and 24),
   role text not null default 'member' check (role in ('member', 'admin')),
+  avatar_url text,
+  bio text not null default '',
+  status text not null default 'Available',
   created_at timestamptz not null default now()
 );
+
+alter table public.profiles add column if not exists avatar_url text;
+alter table public.profiles add column if not exists bio text not null default '';
+alter table public.profiles add column if not exists status text not null default 'Available';
 
 alter table public.profiles enable row level security;
 
