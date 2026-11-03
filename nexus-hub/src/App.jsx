@@ -9,7 +9,6 @@ import {
 import { supabase } from "./supabase";
 
 const API = "https://nexus-api-7rxk.onrender.com";
-const GOOGLE_CSE_ID = import.meta.env.VITE_GOOGLE_CSE_ID || "62fa2ca9e562c4a8f";
 const starterGames = [
   {
     name: "Retro Bowl",
@@ -113,7 +112,6 @@ export default function App() {
   const [notice, setNotice] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
-  const [browserQuery, setBrowserQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [adminStats, setAdminStats] = useState({ online: 0, rooms: 0, games: 3 });
   const [playerStats, setPlayerStats] = useState({ xp: 0, level: 1, games_played: 0, daily_claim_date: null, selected_theme: "violet" });
@@ -232,7 +230,6 @@ export default function App() {
   const nav = [
     { id: "home", label: "Overview", icon: LayoutDashboard },
     { id: "games", label: "Games & lobbies", icon: Gamepad2 },
-    { id: "browser", label: "Web browser", icon: Globe },
     { id: "rewards", label: "Rewards & levels", icon: Trophy },
     { id: "chat", label: "Community chat", icon: MessageCircle },
     { id: "friends", label: "People", icon: Users },
@@ -482,7 +479,6 @@ export default function App() {
       <div className="page-content">
         {notice && <div className="notice"><Sparkles size={16}/>{notice}<button onClick={() => setNotice("")}><X size={15}/></button></div>}
         {page === "home" && <HomePage username={username} online={online} rooms={rooms} setPage={setPage} setNotice={setNotice}/>}
-        {page === "browser" && <GoogleSearchPage/>}
         {page === "games" && <GamesPage socket={socket} username={username} session={session} rooms={rooms} myLobby={myLobby} lobbyCode={lobbyCode} setLobbyCode={setLobbyCode} lobbyError={lobbyError} createLobby={createLobby} joinLobby={joinLobby} leaveLobby={leaveLobby} startLobby={startLobby} recordGame={recordGame}/>}
         {page === "rewards" && <RewardsPage username={username} stats={playerStats} activity={activityFeed} leaderboard={playerLeaderboard} loading={rewardsLoading} onClaimDaily={claimDailyChallenge} onChooseTheme={chooseTheme}/>}
         {page === "chat" && <ChatPage username={username} online={online} messages={messages} channel={channel} setChannel={setChannel} messageText={messageText} setMessageText={setMessageText} sendMessage={sendChatMessage} chatFile={chatFile} setChatFile={setChatFile} replyTo={replyTo} setReplyTo={setReplyTo} reactToMessage={reactToMessage} editMessage={editMessage} deleteMessage={deleteMessage} reportMessage={reportMessage}/>}
@@ -576,63 +572,6 @@ function GamesPage({ rooms, myLobby, lobbyCode, setLobbyCode, lobbyError, create
     {embeddedGame&&<div className="external-game-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setEmbeddedGame(null)}}><section className="external-game-shell"><header><div><b><EmbeddedIcon size={16}/> {embeddedGame.name}</b><span>External game · {embeddedGame.mode==="external-multiplayer"?"multiplayer":"single-player"}</span></div><div className="external-game-actions"><button className="secondary-btn" onClick={()=>document.getElementById("nexus-external-game")?.requestFullscreen?.()}>Fullscreen</button><button className="quiet-btn" onClick={()=>setEmbeddedGame(null)}>Close</button></div></header><iframe id="nexus-external-game" src={embeddedGame.externalUrl} title={embeddedGame.name} allow="fullscreen; autoplay; gamepad" allowFullScreen referrerPolicy="strict-origin-when-cross-origin"/><p>Having trouble loading? <a href={embeddedGame.externalUrl} target="_blank" rel="noreferrer">Open in a new tab</a>.</p></section></div>}
     {selected&&<div className="game-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setSelected(null)}}><section className="game-modal"><button className="quiet-btn" onClick={()=>setSelected(null)}>Close</button><div className="game-modal-icon">{selected.icon}</div><div className="eyebrow">{selected.type} · {selected.players}</div><h2>{selected.name}</h2><p>{selected.description}</p><p className="muted">{selected.mode==="multiplayer"?"Create a lobby and invite friends with its code.":selected.mode==="single"?"A single-player game.":"This game is still being prepared for NEXUS."}</p>{selected.mode==="multiplayer"&&<button className="primary-btn" onClick={()=>{createLobby(selected.name);setSelected(null)}}>Play with friends <ArrowRight size={15}/></button>}</section></div>}
    </div>;
-}
-
-function GoogleSearchPage() {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState([]);
-  const [searched, setSearched] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  async function search(event) {
-    event.preventDefault();
-    const term = query.trim();
-    if (!term) return;
-    setLoading(true); setError(""); setSearched(term); setResults([]);
-    try {
-      const response = await fetch(`${API}/api/search?q=${encodeURIComponent(term)}`);
-      const responseText = await response.text();
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch {
-        throw new Error("NEXUS received a webpage instead of search data. The Render search API may still be deploying; wait a minute and refresh.");
-      }
-      if (!response.ok) throw new Error(data.error || "Search failed.");
-      setResults(data.results || []);
-      if (!data.results?.length) setError("No results came back. Try another search.");
-    } catch (err) {
-      setError(err.message || "Search is unavailable right now.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return <section className="social-panel nexus-web-search" style={{maxWidth:1100,margin:"0 auto",padding:24}}>
-    <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
-      <div style={{width:46,height:46,borderRadius:14,display:"grid",placeItems:"center",background:"#de5833",color:"#fff",fontWeight:800,fontSize:22}}>D</div>
-      <div><div className="eyebrow">NEXUS WEB</div><h1 style={{margin:0}}>DuckDuckGo Search</h1></div>
-    </div>
-    <p className="muted" style={{margin:"12px 0 20px"}}>Search the web and view results right here in NEXUS.</p>
-    <form onSubmit={search} style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-      <input aria-label="Search the web" type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search the web…" required style={{flex:"1 1 280px",minWidth:0,padding:"14px 16px",borderRadius:12,border:"1px solid var(--border)",background:"var(--input-bg, transparent)",color:"inherit",fontSize:16}}/>
-      <button type="submit" disabled={loading || !query.trim()} style={{padding:"12px 22px",borderRadius:12,border:0,background:"#de5833",color:"#fff",fontWeight:700,cursor:"pointer",opacity:loading?0.7:1}}>{loading ? "Searching…" : "Search"}</button>
-    </form>
-    {loading && <p className="muted" style={{marginTop:20}}>Searching DuckDuckGo…</p>}
-    {error && <p className="form-error" style={{marginTop:20}}>{error}</p>}
-    {results.length > 0 && <div style={{marginTop:24}}>
-      <p className="muted" style={{fontSize:13}}>Results for “{searched}” · {results.length} results</p>
-      <div style={{display:"grid",gap:16}}>
-        {results.map((result,index) => <article key={result.url + index} style={{padding:"14px 0",borderBottom:"1px solid var(--border)"}}>
-          <a href={result.url} target="_blank" rel="noopener noreferrer" style={{fontSize:18,fontWeight:650,color:"var(--accent, #de5833)",textDecoration:"none"}}>{result.title}</a>
-          <div style={{fontSize:12,opacity:0.7,overflowWrap:"anywhere",marginTop:4}}>{result.url}</div>
-          {result.snippet && <p style={{margin:"7px 0 0",lineHeight:1.5}}>{result.snippet}</p>}
-        </article>)}
-      </div>
-    </div>}
-    <p className="muted" style={{fontSize:12,marginTop:18}}>Search results are provided by DuckDuckGo.</p>
-  </section>;
 }
 
 function MiniGame({name}) {
