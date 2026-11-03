@@ -1,6 +1,16 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+
 export default defineConfig({
+  base: "/Skipper.github.io/",
   plugins: [react()],
-  server: { proxy: { "/api": "http://localhost:3001", "/socket.io": { target: "http://localhost:3001", ws: true } } }
+  server: {
+    proxy: {
+      "/api": "http://localhost:3001",
+      "/socket.io": {
+        target: "http://localhost:3001",
+        ws: true
+      }
+    }
+  }
 });
