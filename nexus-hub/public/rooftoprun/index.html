@@ -1,26 +1,117 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-us">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Roof Top Run</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/z799gs/99@main/TemplateData/style.css">
 <style>
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#090b12;color:#fff;font-family:Arial,sans-serif}
-#game{display:block;width:100%;height:100%;border:0;background:#090b12}
-#status{position:fixed;inset:0;display:grid;place-items:center;text-align:center;padding:24px;background:#090b12;z-index:2}
-#status.hidden{display:none}.panel{max-width:420px}.panel h1{margin:0 0 10px;font-size:26px}.panel p{color:#c4c8d4;line-height:1.5}.loader{width:34px;height:34px;border:3px solid #34394a;border-top-color:#9b75ff;border-radius:50%;animation:spin .8s linear infinite;margin:20px auto}@keyframes spin{to{transform:rotate(360deg)}}
-#fullscreen{position:fixed;right:14px;bottom:14px;z-index:3;border:1px solid #8c68f5;border-radius:8px;background:#171323;color:white;padding:10px 14px;font-weight:700;cursor:pointer}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:'Segoe UI',Tahoma,sans-serif}
+#unity-container{position:relative;width:100%;height:100%;background:#0a0a1a}
+#unity-canvas{display:block;width:100%;height:100%;background:#0a0a1a;outline:none}
+#custom-loading{position:fixed;inset:0;background:linear-gradient(135deg,#0a0a1a,#1a1a3e 50%,#0a1628);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;transition:opacity .8s ease;padding:20px}
+#custom-loading.fade-out{opacity:0;pointer-events:none}
+.loading-icon{font-size:56px;margin-bottom:20px;animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.15);opacity:.8}}
+.loading-title{font-size:clamp(25px,5vw,36px);font-weight:900;color:#00d4ff;text-shadow:0 0 20px #00d4ff66;letter-spacing:4px;margin-bottom:8px}
+.loading-subtitle{font-size:13px;color:#809bb5;margin-bottom:30px;letter-spacing:1px;text-align:center}
+.progress-container{width:min(380px,90vw);margin-bottom:12px}
+.progress-bar-bg{width:100%;height:20px;background:#ffffff14;border-radius:10px;overflow:hidden;border:1px solid #00d4ff33}
+.progress-bar-fill{height:100%;width:0;background:linear-gradient(90deg,#06f,#00d4ff,#06f);background-size:200% 100%;border-radius:10px;transition:width .3s;animation:shimmer 1.5s linear infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.progress-text{color:#00d4ff;font-size:15px;font-weight:bold;text-align:center;margin-top:8px}
+.loading-status{color:#8aa6c0;font-size:12px;margin-top:5px;text-align:center;min-height:18px;overflow-wrap:anywhere}
+.fun-message{color:#aab8d0;font-size:13px;margin-top:25px;font-style:italic;opacity:.7;text-align:center;min-height:20px}
+#fullscreen{position:fixed;right:14px;bottom:14px;z-index:110;border:1px solid #00d4ff88;border-radius:7px;background:#10182b;color:white;padding:9px 13px;font-weight:700;cursor:pointer}
+#load-error{display:none;color:#ff9b9b;max-width:420px;text-align:center;font-size:13px;margin-top:14px;line-height:1.5}
 </style>
 </head>
-<body>
-<iframe id="game" title="Roof Top Run" allow="autoplay; fullscreen; gamepad" allowfullscreen></iframe>
-<div id="status"><div class="panel"><div class="loader"></div><h1>Loading Roof Top Run…</h1><p id="message">Getting the game ready. This may take a moment.</p></div></div>
+<body class="dark">
+<div id="unity-container" class="unity-desktop">
+<canvas id="unity-canvas" width="795" height="575" tabindex="-1"></canvas>
+<div id="custom-loading">
+<div class="loading-icon">🏃</div>
+<div class="loading-title">ROOF TOP RUN</div>
+<div class="loading-subtitle">Preparing game assets...</div>
+<div class="progress-container">
+<div class="progress-bar-bg"><div class="progress-bar-fill" id="merge-progress-bar"></div></div>
+<div class="progress-text" id="merge-progress-text">0%</div>
+<div class="loading-status" id="merge-status">Connecting to game files...</div>
+</div>
+<div class="fun-message" id="fun-message">Loading textures and shaders... 🎨</div>
+<div id="load-error"></div>
+</div>
+</div>
 <button id="fullscreen" type="button">Fullscreen</button>
 <script>
-const GAME_FILE="https://cdn.jsdelivr.net/gh/z799gs/99@main/3.xml";
-const frame=document.getElementById("game"),status=document.getElementById("status"),message=document.getElementById("message");
-fetch(GAME_FILE).then(response=>{if(!response.ok)throw new Error("The game file could not be found ("+response.status+").");return response.text()}).then(html=>{frame.srcdoc=html;status.classList.add("hidden")}).catch(error=>{document.querySelector(".loader").style.display="none";document.querySelector("#status h1").textContent="Could not load Roof Top Run";message.textContent=error.message+" Please try again later or open the game in a new tab."});
-document.getElementById("fullscreen").addEventListener("click",()=>{if(frame.requestFullscreen)frame.requestFullscreen();else if(frame.webkitRequestFullscreen)frame.webkitRequestFullscreen()});
+(function(){
+const funMessages=["Loading textures and shaders... 🎨","Building the world around you... 🌍","Placing all the objects... 📦","Waking up the NPCs... 🧑","Polishing the graphics... ✨","Tuning the physics engine... ⚙️","Syncing game logic... 🧠","Almost there, hang tight... 🚀","Final touches in progress... 🎯","Get ready to play! 🏆"];
+let funIndex=0;
+const funEl=document.getElementById("fun-message");
+const funTimer=setInterval(()=>{funEl.textContent=funMessages[funIndex++%funMessages.length]},3000);
+const mergeConfig={files:[{name:"game.data.br",parts:4},{name:"game.wasm.br",parts:4}],basePath:"https://cdn.jsdelivr.net/gh/z799gs/99@d3359c5/Build/"};
+const mergedFiles={};
+const bar=document.getElementById("merge-progress-bar");
+const pctText=document.getElementById("merge-progress-text");
+const status=document.getElementById("merge-status");
+const loading=document.getElementById("custom-loading");
+const errorBox=document.getElementById("load-error");
+const canvas=document.getElementById("unity-canvas");
+const container=document.getElementById("unity-container");
+function progress(pct,label){bar.style.width=pct+"%";pctText.textContent=pct+"%";if(label)status.textContent=label}
+async function mergeFile(file,completed,totalParts){
+ const chunks=[];
+ for(let i=0;i<file.parts;i++){
+  const url=mergeConfig.basePath+file.name+".part"+i;
+  const response=await fetch(url);
+  if(!response.ok)throw new Error("Could not download "+file.name+" part "+i+" (HTTP "+response.status+").");
+  const buffer=await response.arrayBuffer();
+  chunks.push(new Uint8Array(buffer));
+  completed.count++;
+  progress(Math.round(completed.count/totalParts*100),file.name+" — part "+(i+1)+"/"+file.parts);
+ }
+ const size=chunks.reduce((sum,chunk)=>sum+chunk.length,0);
+ const merged=new Uint8Array(size);
+ let offset=0;
+ for(const chunk of chunks){merged.set(chunk,offset);offset+=chunk.length}
+ mergedFiles[file.name]=merged.buffer;
+}
+const originalFetch=window.fetch.bind(window);
+window.fetch=function(input,options){
+ const url=typeof input==="string"?input:(input&&input.url)||"";
+ for(const file of mergeConfig.files){
+  if((url.endsWith(file.name)||url.includes("/"+file.name))&&mergedFiles[file.name]){
+   return Promise.resolve(new Response(mergedFiles[file.name].slice(0),{status:200,headers:{"Content-Type":"application/octet-stream"}}));
+  }
+ }
+ return originalFetch(input,options);
+};
+async function start(){
+ const total=mergeConfig.files.reduce((sum,file)=>sum+file.parts,0);
+ const completed={count:0};
+ for(const file of mergeConfig.files)await mergeFile(file,completed,total);
+ status.textContent="Starting game engine...";
+ progress(100,"Starting game engine...");
+ const buildUrl="https://cdn.jsdelivr.net/gh/z799gs/99@main/Build";
+ const config={dataUrl:buildUrl+"/game.data.br",frameworkUrl:buildUrl+"/game.js",codeUrl:buildUrl+"/game.wasm.br",streamingAssetsUrl:"",companyName:"GAME",productName:"Roof Top Run",productVersion:"1.0"};
+ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){container.className="unity-mobile";config.devicePixelRatio=1}
+ const script=document.createElement("script");
+ script.src=buildUrl+"/loader.js";
+ script.onload=()=>{
+  if(typeof createUnityInstance!=="function"){throw new Error("Unity loader loaded, but the game engine could not start.")}
+  createUnityInstance(canvas,config,p=>{const pct=Math.round(p*100);progress(pct,"Loading game engine... "+pct+"%")})
+   .then(instance=>{window.unityInstance=instance;clearInterval(funTimer);loading.classList.add("fade-out");setTimeout(()=>loading.style.display="none",850)})
+   .catch(err=>showError(typeof err==="string"?err:(err.message||"Unity could not start.")));
+ };
+ script.onerror=()=>showError("The Unity loader could not be downloaded. Please try again later.");
+ document.body.appendChild(script);
+}
+function showError(message){clearInterval(funTimer);document.querySelector(".loading-icon").textContent="⚠️";status.textContent="Game failed to load";errorBox.style.display="block";errorBox.textContent=message;console.error("[Roof Top Run]",message)}
+start().catch(err=>showError(err.message||String(err)));
+document.getElementById("fullscreen").addEventListener("click",()=>{const target=document.getElementById("unity-container");if(target.requestFullscreen)target.requestFullscreen();else if(target.webkitRequestFullscreen)target.webkitRequestFullscreen()});
+})();
 </script>
 </body>
 </html>
