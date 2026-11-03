@@ -38,7 +38,7 @@ export default function NexusFeatures({session,username,stats,onlineCount,isAdmi
     if(!supabase)return;
     setBusy(true);setError("");
     const tasks=[
-      supabase.from("nexus_favorites").select("game_name").eq("user_id",userId||"00000000-0000-0000-0000-000000000000"),
+      userId ? supabase.from("nexus_favorites").select("game_name").eq("user_id",userId) : Promise.resolve({data:[],error:null}),
       supabase.from("nexus_forum_posts").select("*").order("created_at",{ascending:false}).limit(40),
       supabase.from("nexus_polls").select("*").order("created_at",{ascending:false}).limit(20),
       supabase.from("nexus_events").select("*").order("event_date",{ascending:true}).limit(20),
