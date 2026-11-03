@@ -143,7 +143,7 @@ io.on("connection", (socket) => {
     socket.leave(`lobby:${key}`);
     if (lobby) {
       lobby.players = lobby.players.filter(p => p !== username);
-      if (!lobby.players.length || lobby.host === username) { rooms.delete(key); gameSessions.delete(key); }
+      if (!lobby.players.length || (!anotherSession && lobby.host === username)) { rooms.delete(key); gameSessions.delete(key); }
       else io.to(`lobby:${key}`).emit("lobby:update", lobby);
       io.emit("lobby:list", [...rooms.values()]);
     }
