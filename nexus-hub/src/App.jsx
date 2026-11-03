@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { supabase } from "./supabase";
 import NexusFeatures from "./NexusFeatures";
+import NexusWorld from "./NexusWorld";
 
 const API = "https://nexus-api-7rxk.onrender.com";
 const starterGames = [
@@ -235,6 +236,7 @@ export default function App() {
     { id: "chat", label: "Community chat", icon: MessageCircle },
     { id: "friends", label: "People", icon: Users },
     { id: "features", label: "Everything hub", icon: Sparkles },
+    { id: "world", label: "NEXUS World", icon: Globe },
     ...(isAdmin ? [{ id: "admin", label: "Admin panel", icon: Shield }] : [])
   ];
   const searchTerm = globalSearch.trim().toLowerCase();
@@ -485,6 +487,7 @@ export default function App() {
         {page === "rewards" && <RewardsPage username={username} stats={playerStats} activity={activityFeed} leaderboard={playerLeaderboard} loading={rewardsLoading} onClaimDaily={claimDailyChallenge} onChooseTheme={chooseTheme}/>}
         {page === "chat" && <ChatPage username={username} online={online} messages={messages} channel={channel} setChannel={setChannel} messageText={messageText} setMessageText={setMessageText} sendMessage={sendChatMessage} chatFile={chatFile} setChatFile={setChatFile} replyTo={replyTo} setReplyTo={setReplyTo} reactToMessage={reactToMessage} editMessage={editMessage} deleteMessage={deleteMessage} reportMessage={reportMessage}/>}
         {page === "features" && <NexusFeatures session={session} username={username} stats={playerStats} onlineCount={online.length} isAdmin={isAdmin} setNotice={setNotice}/>}
+        {page === "world" && <NexusWorld session={session} username={username} profile={profile} games={starterGames} online={online} activity={activityFeed} isAdmin={isAdmin} onOpenGames={() => setPage("games")} setNotice={setNotice}/ >}
         {page === "friends" && <PeoplePage online={online} session={session} friendRequests={friendRequests} addFriend={addFriend} respondFriend={respondFriend} openDM={openDM} blockUser={blockUser} dmTarget={dmTarget} dmMessages={dmMessages} dmText={dmText} setDmText={setDmText} sendDM={sendDM} closeDM={() => setDmTarget(null)}/>}
         {page === "admin" && (isAdmin ? <AdminPage stats={adminStats} online={online} reports={reports} updateReport={updateReport} gameSubmissions={gameSubmissions} reviewGameSubmission={reviewGameSubmission}/> : <div className="empty-state"><Shield/><h2>Admin access required</h2><p>Your account does not have administrator permissions.</p></div>)}
       </div>
