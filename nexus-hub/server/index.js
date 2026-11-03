@@ -107,13 +107,32 @@ io.on("connection", (socket) => {
     io.emit("lobby:list", [...rooms.values()]);
   });
 
+
+  const triviaQuestions = [
+    {text:"Which planet is known as the Red Planet?",options:["Venus","Mars","Jupiter","Mercury"],answer:"Mars"},
+    {text:"How many sides does a hexagon have?",options:["Five","Six","Seven","Eight"],answer:"Six"},
+    {text:"What is the largest ocean on Earth?",options:["Atlantic","Indian","Arctic","Pacific"],answer:"Pacific"},
+    {text:"Which animal is the largest mammal?",options:["African elephant","Blue whale","Giraffe","Hippopotamus"],answer:"Blue whale"},
+    {text:"What is 9 × 8?",options:["64","72","81","80"],answer:"72"},
+    {text:"Which gas do plants absorb from the atmosphere?",options:["Oxygen","Nitrogen","Carbon dioxide","Hydrogen"],answer:"Carbon dioxide"},
+    {text:"Which continent is the Sahara Desert in?",options:["Asia","Africa","Australia","South America"],answer:"Africa"},
+    {text:"What is the chemical symbol for gold?",options:["Ag","Gd","Au","Go"],answer:"Au"}
+  ];
+  const gameSessions = new Map();
+  function publicTriviaState(session){const q=triviaQuestions[session.index];return{index:session.index,total:triviaQuestions.length,question:q?{text:q.text,options:q.options}:null,scores:Object.entries(session.scores).map(([username,score])=>({username,score})),answered:Object.keys(session.answers),players:session.players,finished:session.finished};}
+  socket.on("race:boost",({code,username})=>{const key=String(code||"").toUpperCase(),lobby=rooms.get(key),session=gameSessions.get(key);if(!lobby||lobby.game!=="Neon Racers"||!session||!lobby.players.includes(username)||session.winner)return;session.progress[username]=Math.min(100,(session.progress[username]||0)+4);if(session.progress[username]>=100)session.winner=username;io.to("lobby:"+key).emit("race:state",{players:lobby.players,progress:session.progress,winner:session.winner});});
+  socket.on("trivia:next",({code,username})=>{const key=String(code||"").toUpperCase(),lobby=rooms.get(key);if(!lobby||lobby.game!=="Trivia Clash"||lobby.host!==username)return;let session=gameSessions.get(key);if(!session)session={index:-1,scores:Object.fromEntries(lobby.players.map(p=>[p,0])),answers:{},players:[...lobby.players],finished:false};if(session.index>=triviaQuestions.length-1){session.finished=true;gameSessions.set(key,session);io.to("lobby:"+key).emit("trivia:state",publicTriviaState(session));return;}session.index++;session.answers={};session.finished=false;gameSessions.set(key,session);io.to("lobby:"+key).emit("trivia:question",publicTriviaState(session));});
+  socket.on("trivia:answer",({code,username,answer})=>{const key=String(code||"").toUpperCase(),lobby=rooms.get(key),session=gameSessions.get(key);if(!lobby||!session||session.finished||!lobby.players.includes(username)||session.answers[username])return;const q=triviaQuestions[session.index];if(!q)return;const correct=String(answer||"")===q.answer;session.answers[username]={answer:String(answer||""),correct};if(correct)session.scores[username]=(session.scores[username]||0)+1;io.to("lobby:"+key).emit("trivia:state",publicTriviaState(session));});
+  socket.on("game:leave",({code,username})=>{const key=String(code||"").toUpperCase();socket.leave("lobby:"+key);const session=gameSessions.get(key);if(session?.progress)delete session.progress[username];});
+
   socket.on("lobby:start", ({ code, username }) => {
     const lobby = rooms.get(String(code || "").toUpperCase());
     if (!lobby) return;
     if (lobby.host !== username) return socket.emit("lobby:error", "Only the host can start this lobby.");
     lobby.started = true;
     io.to(`lobby:${lobby.code}`).emit("lobby:update", lobby);
-    io.to(`lobby:${lobby.code}`).emit("game:started", { game: lobby.game, players: lobby.players });
+    io.to(`lobby:${lobby.code}`).emit("game:started", { game: lobby.game, players: lobby.players, code: lobby.code, host: lobby.host });
+    if(lobby.game==="Neon Racers"){const progress=Object.fromEntries(lobby.players.map(p=>[p,0]));gameSessions.set(lobby.code,{progress,winner:null});io.to("lobby:"+lobby.code).emit("race:state",{players:lobby.players,progress,winner:null});}
   });
 
   socket.on("lobby:leave", ({ code, username }) => {
@@ -122,7 +141,7 @@ io.on("connection", (socket) => {
     socket.leave(`lobby:${key}`);
     if (lobby) {
       lobby.players = lobby.players.filter(p => p !== username);
-      if (!lobby.players.length || lobby.host === username) rooms.delete(key);
+      if (!lobby.players.length || lobby.host === username) { rooms.delete(key); gameSessions.delete(key); }
       else io.to(`lobby:${key}`).emit("lobby:update", lobby);
       io.emit("lobby:list", [...rooms.values()]);
     }
