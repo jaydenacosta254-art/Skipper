@@ -2,7 +2,6 @@
 <html lang="en-us">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Roof Top Run</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/z799gs/99@main/TemplateData/style.css">
@@ -47,10 +46,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:
 <button id="fullscreen" type="button">Fullscreen</button>
 <script>
 (function(){
-const funMessages=["Loading textures and shaders... 🎨","Building the world around you... 🌍","Placing all the objects... 📦","Waking up the NPCs... 🧑","Polishing the graphics... ✨","Tuning the physics engine... ⚙️","Syncing game logic... 🧠","Almost there, hang tight... 🚀","Final touches in progress... 🎯","Get ready to play! 🏆"];
-let funIndex=0;
-const funEl=document.getElementById("fun-message");
-const funTimer=setInterval(()=>{funEl.textContent=funMessages[funIndex++%funMessages.length]},3000);
+const messages=["Loading textures and shaders... 🎨","Building the world around you... 🌍","Placing all the objects... 📦","Waking up the NPCs... 🧑","Polishing the graphics... ✨","Tuning the physics engine... ⚙️","Syncing game logic... 🧠","Almost there, hang tight... 🚀","Final touches in progress... 🎯","Get ready to play! 🏆"];
+let messageIndex=0;
+const messageEl=document.getElementById("fun-message");
+const messageTimer=setInterval(()=>{messageEl.textContent=messages[messageIndex++%messages.length]},3000);
 const mergeConfig={files:[{name:"game.data.br",parts:4},{name:"game.wasm.br",parts:4}],basePath:"https://cdn.jsdelivr.net/gh/z799gs/99@d3359c5/Build/"};
 const mergedFiles={};
 const bar=document.getElementById("merge-progress-bar");
@@ -60,25 +59,25 @@ const loading=document.getElementById("custom-loading");
 const errorBox=document.getElementById("load-error");
 const canvas=document.getElementById("unity-canvas");
 const container=document.getElementById("unity-container");
-function progress(pct,label){bar.style.width=pct+"%";pctText.textContent=pct+"%";if(label)status.textContent=label}
-async function mergeFile(file,completed,totalParts){
- const chunks=[];
+function setProgress(pct,label){bar.style.width=pct+"%";pctText.textContent=pct+"%";if(label)status.textContent=label}
+async function mergeFile(file,completed,total){
+ const parts=[];
  for(let i=0;i<file.parts;i++){
   const url=mergeConfig.basePath+file.name+".part"+i;
   const response=await fetch(url);
   if(!response.ok)throw new Error("Could not download "+file.name+" part "+i+" (HTTP "+response.status+").");
-  const buffer=await response.arrayBuffer();
-  chunks.push(new Uint8Array(buffer));
+  parts.push(new Uint8Array(await response.arrayBuffer()));
   completed.count++;
-  progress(Math.round(completed.count/totalParts*100),file.name+" — part "+(i+1)+"/"+file.parts);
+  setProgress(Math.round(completed.count/total*100),file.name+" — part "+(i+1)+"/"+file.parts);
  }
- const size=chunks.reduce((sum,chunk)=>sum+chunk.length,0);
+ const size=parts.reduce((sum,part)=>sum+part.length,0);
  const merged=new Uint8Array(size);
  let offset=0;
- for(const chunk of chunks){merged.set(chunk,offset);offset+=chunk.length}
+ for(const part of parts){merged.set(part,offset);offset+=part.length}
  mergedFiles[file.name]=merged.buffer;
+ console.log("[MERGE] "+file.name+" merged ("+(size/1024/1024).toFixed(2)+" MB)");
 }
-const originalFetch=window.fetch.bind(window);
+const nativeFetch=window.fetch.bind(window);
 window.fetch=function(input,options){
  const url=typeof input==="string"?input:(input&&input.url)||"";
  for(const file of mergeConfig.files){
@@ -86,29 +85,65 @@ window.fetch=function(input,options){
    return Promise.resolve(new Response(mergedFiles[file.name].slice(0),{status:200,headers:{"Content-Type":"application/octet-stream"}}));
   }
  }
- return originalFetch(input,options);
+ return nativeFetch(input,options);
 };
+const NativeXHR=window.XMLHttpRequest;
+window.XMLHttpRequest=function(){
+ const xhr=new NativeXHR();
+ const nativeOpen=xhr.open;
+ const nativeSend=xhr.send;
+ xhr.open=function(method,url){this.__mergedUrl=String(url);return nativeOpen.apply(this,arguments)};
+ xhr.send=function(body){
+  const file=mergeConfig.files.find(item=>this.__mergedUrl&&(this.__mergedUrl.endsWith(item.name)||this.__mergedUrl.includes("/"+item.name)));
+  if(file&&mergedFiles[file.name]){
+   const data=mergedFiles[file.name].slice(0);
+   setTimeout(()=>{
+    try{
+     Object.defineProperty(xhr,"status",{configurable:true,get:()=>200});
+     Object.defineProperty(xhr,"statusText",{configurable:true,get:()=>"OK"});
+     Object.defineProperty(xhr,"readyState",{configurable:true,get:()=>4});
+     Object.defineProperty(xhr,"response",{configurable:true,get:()=>xhr.responseType==="text"?new TextDecoder().decode(data):data});
+     Object.defineProperty(xhr,"responseURL",{configurable:true,get:()=>xhr.__mergedUrl});
+     if(typeof xhr.onreadystatechange==="function")xhr.onreadystatechange(new Event("readystatechange"));
+     if(typeof xhr.onload==="function")xhr.onload(new ProgressEvent("load"));
+     xhr.dispatchEvent(new ProgressEvent("loadend"));
+    }catch(error){console.error("[XHR INTERCEPT]",error);nativeSend.call(xhr,body)}
+   },0);
+   return;
+  }
+  return nativeSend.apply(this,arguments);
+ };
+ return xhr;
+};
+window.XMLHttpRequest.prototype=NativeXHR.prototype;
+for(const key of ["UNSENT","OPENED","HEADERS_RECEIVED","LOADING","DONE"])window.XMLHttpRequest[key]=NativeXHR[key];
+function showError(message){
+ clearInterval(messageTimer);
+ document.querySelector(".loading-icon").textContent="⚠️";
+ status.textContent="Game failed to load";
+ errorBox.style.display="block";
+ errorBox.textContent=message;
+ console.error("[Roof Top Run]",message);
+}
 async function start(){
  const total=mergeConfig.files.reduce((sum,file)=>sum+file.parts,0);
  const completed={count:0};
  for(const file of mergeConfig.files)await mergeFile(file,completed,total);
- status.textContent="Starting game engine...";
- progress(100,"Starting game engine...");
+ setProgress(100,"Starting game engine...");
  const buildUrl="https://cdn.jsdelivr.net/gh/z799gs/99@main/Build";
  const config={dataUrl:buildUrl+"/game.data.br",frameworkUrl:buildUrl+"/game.js",codeUrl:buildUrl+"/game.wasm.br",streamingAssetsUrl:"",companyName:"GAME",productName:"Roof Top Run",productVersion:"1.0"};
  if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){container.className="unity-mobile";config.devicePixelRatio=1}
  const script=document.createElement("script");
  script.src=buildUrl+"/loader.js";
  script.onload=()=>{
-  if(typeof createUnityInstance!=="function"){throw new Error("Unity loader loaded, but the game engine could not start.")}
-  createUnityInstance(canvas,config,p=>{const pct=Math.round(p*100);progress(pct,"Loading game engine... "+pct+"%")})
-   .then(instance=>{window.unityInstance=instance;clearInterval(funTimer);loading.classList.add("fade-out");setTimeout(()=>loading.style.display="none",850)})
+  if(typeof createUnityInstance!=="function"){showError("The Unity loader downloaded, but the game engine was not found.");return}
+  createUnityInstance(canvas,config,p=>{const pct=Math.round(p*100);setProgress(pct,"Loading game engine... "+pct+"%")})
+   .then(instance=>{window.unityInstance=instance;clearInterval(messageTimer);loading.classList.add("fade-out");setTimeout(()=>loading.style.display="none",850)})
    .catch(err=>showError(typeof err==="string"?err:(err.message||"Unity could not start.")));
  };
  script.onerror=()=>showError("The Unity loader could not be downloaded. Please try again later.");
  document.body.appendChild(script);
 }
-function showError(message){clearInterval(funTimer);document.querySelector(".loading-icon").textContent="⚠️";status.textContent="Game failed to load";errorBox.style.display="block";errorBox.textContent=message;console.error("[Roof Top Run]",message)}
 start().catch(err=>showError(err.message||String(err)));
 document.getElementById("fullscreen").addEventListener("click",()=>{const target=document.getElementById("unity-container");if(target.requestFullscreen)target.requestFullscreen();else if(target.webkitRequestFullscreen)target.webkitRequestFullscreen()});
 })();
