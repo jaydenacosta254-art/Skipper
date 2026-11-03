@@ -93,3 +93,75 @@
 .party-tap{width:180px;height:100px;border-radius:22px;font-size:27px}
 .mini-game-result{margin:18px auto;padding:18px;border-radius:14px;background:rgba(55,190,150,.12);border:1px solid rgba(55,190,150,.3)}
 @media(max-width:600px){.mini-game{padding:16px 10px}.memory-grid{gap:6px}.memory-grid button{height:58px}.quest-grid{grid-template-columns:repeat(5,40px)}.quest-grid div{height:38px}}
+
+
+/* Responsive fit across desktop, tablet, and mobile screens */
+html{width:100%;min-width:320px;overflow-x:hidden}
+body,#root,.app-shell{width:100%;max-width:100%;overflow-x:clip}
+img,video,iframe,canvas,svg{max-width:100%}
+button,input,textarea,select{max-width:100%}
+.main-area,.page-content,.games-page,.chat-layout,.rewards-page{min-width:0;max-width:100%}
+.page-content{width:100%}
+.library-grid,.game-library-grid,.stat-grid,.rewards-grid,.people-grid,.games-lower-grid{min-width:0}
+.game-library-card,.reward-card,.join-panel,.social-panel,.person-card{min-width:0;overflow-wrap:anywhere}
+@media(min-width:761px) and (max-width:1100px){
+  .sidebar{width:218px;padding-left:12px;padding-right:12px}
+  .main-area{margin-left:218px}
+  .topbar{padding-left:22px;padding-right:22px}
+  .page-content{padding:28px 22px 48px}
+  .hero-art{right:-35px;opacity:.35}
+  .games-layout{grid-template-columns:minmax(0,1fr) 240px;gap:14px}
+  .game-library-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr))}
+}
+@media(max-width:760px){
+  .page-content{padding:22px 13px 38px}
+  .topbar{width:100%;min-width:0}
+  .top-actions{min-width:0}
+  .welcome-row,.page-title-row{flex-wrap:wrap}
+  .welcome-row>*,.page-title-row>*{min-width:0}
+  .stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rewards-grid{grid-template-columns:minmax(0,1fr)}
+  .game-library-grid{grid-template-columns:minmax(0,1fr)}
+  .game-shelf{padding:12px}
+  .game-shelf-heading{align-items:flex-start;flex-wrap:wrap}
+  .game-library-card{width:100%}
+  .games-lower-grid{grid-template-columns:minmax(0,1fr)}
+  .chat-layout{width:100%;min-width:0;grid-template-columns:minmax(92px,115px) minmax(0,1fr)}
+  .chat-main,.chat-channels,.message-list{min-width:0}
+  .message-composer{min-width:0}
+  .message-composer input{min-width:0;width:100%}
+  .external-game-backdrop{padding:0;place-items:stretch}
+  .external-game-shell{width:100%;height:100dvh;max-height:100dvh;border-radius:0}
+  .external-game-shell header{flex-wrap:wrap;min-height:54px}
+  .external-game-shell iframe{min-height:0}
+  .external-game-shell>p{padding:6px 9px}
+}
+@media(max-width:480px){
+  .page-content{padding:18px 10px 30px}
+  .welcome-row h1,.page-title-row h1{font-size:21px;letter-spacing:-.5px}
+  .muted{font-size:11px}
+  .stat-grid{gap:7px}
+  .stat-card{min-width:0}
+  .xp-hero{flex-wrap:wrap}
+  .xp-total{margin-left:auto}
+  .theme-options{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .game-library-card{gap:9px;padding:11px}
+  .game-library-card .library-icon{width:40px;height:40px;flex-basis:40px}
+  .game-library-card .library-copy h3{font-size:14px}
+  .game-card-actions{flex-wrap:wrap}
+  .game-shelf-count{font-size:9px}
+  .chat-layout{grid-template-columns:88px minmax(0,1fr)}
+  .chat-space{align-items:flex-start}
+  .channel-btn{overflow:hidden;text-overflow:ellipsis}
+  .message{gap:7px}
+  .message .avatar{width:28px;height:28px;flex:0 0 28px}
+  .external-game-actions{margin-left:auto}
+  .external-game-actions button{padding:6px 8px}
+  .profile-modal,.game-modal{width:calc(100vw - 20px);max-height:calc(100dvh - 20px);overflow:auto}
+}
+@media(max-height:520px) and (orientation:landscape){
+  .external-game-backdrop{padding:0}
+  .external-game-shell{height:100dvh;max-height:100dvh;border-radius:0}
+  .external-game-shell header{min-height:42px;padding:4px 9px}
+  .external-game-shell>p{display:none}
+}
