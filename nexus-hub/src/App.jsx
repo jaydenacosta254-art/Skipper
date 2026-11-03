@@ -119,6 +119,7 @@ export default function App() {
   const [dmText, setDmText] = useState("");
   const [notifications, setNotifications] = useState([]);
   const [reports, setReports] = useState([]);
+  const [gameSubmissions, setGameSubmissions] = useState([]);
   const [channel, setChannel] = useState("general");
   const [rooms, setRooms] = useState([]);
   const [myLobby, setMyLobby] = useState(null);
@@ -233,7 +234,10 @@ export default function App() {
       setFriendRequests(friendsResult.data || []);
       setNotifications(notesResult.data || []);
     });
-    if (profile?.role === "admin") supabase.from("chat_reports").select("*").eq("status", "open").order("created_at", { ascending: false }).then(({data}) => setReports(data || []));
+    if (profile?.role === "admin") {
+      supabase.from("chat_reports").select("*").eq("status", "open").order("created_at", { ascending: false }).then(({data}) => setReports(data || []));
+      supabase.from("game_submissions").select("*").eq("status", "pending").order("created_at", { ascending: false }).then(({data}) => setGameSubmissions(data || []));
+    }
   }, [session, profile]);
 
   const initials = username.slice(0, 1).toUpperCase();
@@ -408,6 +412,12 @@ export default function App() {
     const { error } = await supabase.from("chat_reports").insert({ reporter_id: session.user.id, message_id: message.id, channel, reported_username: message.username, message_text: message.text || "", reason: reason.trim() });
     setNotice(error ? error.message : "Report submitted to moderators.");
   }
+  async function reviewGameSubmission(item, status) {
+    const { error } = await supabase.from("game_submissions").update({ status }).eq("id", item.id);
+    if (error) return setNotice(error.message);
+    setGameSubmissions(old => old.filter(x => x.id !== item.id));
+    setNotice("Game submission " + status + ".");
+  }
   async function updateReport(report, status) {
     const { error } = await supabase.from("chat_reports").update({ status }).eq("id", report.id);
     if (error) return setNotice(error.message);
@@ -479,7 +489,7 @@ export default function App() {
         {page === "rewards" && <RewardsPage username={username} stats={playerStats} activity={activityFeed} leaderboard={playerLeaderboard} loading={rewardsLoading} onClaimDaily={claimDailyChallenge} onChooseTheme={chooseTheme}/>}
         {page === "chat" && <ChatPage username={username} online={online} messages={messages} channel={channel} setChannel={setChannel} messageText={messageText} setMessageText={setMessageText} sendMessage={sendChatMessage} chatFile={chatFile} setChatFile={setChatFile} replyTo={replyTo} setReplyTo={setReplyTo} reactToMessage={reactToMessage} editMessage={editMessage} deleteMessage={deleteMessage} reportMessage={reportMessage}/>}
         {page === "friends" && <PeoplePage online={online} session={session} friendRequests={friendRequests} addFriend={addFriend} respondFriend={respondFriend} openDM={openDM} blockUser={blockUser} dmTarget={dmTarget} dmMessages={dmMessages} dmText={dmText} setDmText={setDmText} sendDM={sendDM} closeDM={() => setDmTarget(null)}/>}
-        {page === "admin" && (isAdmin ? <AdminPage stats={adminStats} online={online} reports={reports} updateReport={updateReport}/> : <div className="empty-state"><Shield/><h2>Admin access required</h2><p>Your account does not have administrator permissions.</p></div>)}
+        {page === "admin" && (isAdmin ? <AdminPage stats={adminStats} online={online} reports={reports} updateReport={updateReport} gameSubmissions={gameSubmissions} reviewGameSubmission={reviewGameSubmission}/> : <div className="empty-state"><Shield/><h2>Admin access required</h2><p>Your account does not have administrator permissions.</p></div>)}
       </div>
     </main>
     {profileOpen && <ProfileEditor draft={profileDraft} setDraft={setProfileDraft} onSave={saveProfile} onClose={() => setProfileOpen(false)} busy={profileBusy} error={profileError} file={profileFile} setFile={setProfileFile} username={username} avatarUrl={profile?.avatar_url || guestProfile?.avatar_url}/>}
@@ -610,6 +620,6 @@ function RewardsPage({ username, stats, activity, leaderboard, loading, onClaimD
   </div>;
 }
 
-function AdminPage({ stats, online, reports=[], updateReport }) {
- return <><div className="page-title-row"><div><div className="eyebrow">CONTROL CENTER</div><h1>Admin dashboard</h1><p className="muted">Community activity and moderation.</p></div><span className="admin-tag"><Shield size={14}/> ADMINISTRATOR</span></div><div className="stat-grid"><StatCard icon={Users} label="Online users" value={stats.online} note="Live connections" tone="purple"/><StatCard icon={Gamepad2} label="Active lobbies" value={stats.rooms} note="Open game rooms" tone="blue"/><StatCard icon={Gauge} label="Game catalog" value={stats.games} note="Available experiences" tone="orange"/><StatCard icon={Activity} label="API status" value="Online" note="Server responding" tone="green"/></div><section className="social-panel"><h2>Moderation queue ({reports.length})</h2>{reports.length?reports.map(r=><div className="report-row" key={r.id}><div><b>{r.reported_username} in #{r.channel}</b><p>{r.message_text}</p><small>Reason: {r.reason}</small></div><button onClick={()=>updateReport(r,"reviewed")}>Mark reviewed</button><button onClick={()=>updateReport(r,"dismissed")}>Dismiss</button></div>):<p className="muted">No open reports.</p>}</section><div className="section-heading"><div><h2>Online members</h2><p>Currently connected to Nexus.</p></div></div><div className="people-grid">{online.map((n,i)=><div className="person-card" key={n+i}><div className="avatar">{n.slice(0,1).toUpperCase()}</div><b>{n}</b><span className="online-pill">Online</span></div>)}</div></>;
+function AdminPage({ stats, online, reports=[], updateReport, gameSubmissions=[], reviewGameSubmission }) {
+ return <><div className="page-title-row"><div><div className="eyebrow">CONTROL CENTER</div><h1>Admin dashboard</h1><p className="muted">Community activity and moderation.</p></div><span className="admin-tag"><Shield size={14}/> ADMINISTRATOR</span></div><div className="stat-grid"><StatCard icon={Users} label="Online users" value={stats.online} note="Live connections" tone="purple"/><StatCard icon={Gamepad2} label="Active lobbies" value={stats.rooms} note="Open game rooms" tone="blue"/><StatCard icon={Gauge} label="Game catalog" value={stats.games} note="Available experiences" tone="orange"/><StatCard icon={Activity} label="API status" value="Online" note="Server responding" tone="green"/></div><section className="social-panel"><h2>Game submissions ({gameSubmissions.length})</h2>{gameSubmissions.length?gameSubmissions.map(item=><div className="report-row" key={item.id}><div><b>{item.name} · {item.category}</b><p>{item.description}</p><a href={item.url} target="_blank" rel="noreferrer">Open submitted game</a></div><button onClick={()=>reviewGameSubmission(item,"approved")}>Approve</button><button onClick={()=>reviewGameSubmission(item,"rejected")}>Reject</button></div>):<p className="muted">No pending game submissions.</p>}</section><section className="social-panel"><h2>Moderation queue ({reports.length})</h2>{reports.length?reports.map(r=><div className="report-row" key={r.id}><div><b>{r.reported_username} in #{r.channel}</b><p>{r.message_text}</p><small>Reason: {r.reason}</small></div><button onClick={()=>updateReport(r,"reviewed")}>Mark reviewed</button><button onClick={()=>updateReport(r,"dismissed")}>Dismiss</button></div>):<p className="muted">No open reports.</p>}</section><div className="section-heading"><div><h2>Online members</h2><p>Currently connected to Nexus.</p></div></div><div className="people-grid">{online.map((n,i)=><div className="person-card" key={n+i}><div className="avatar">{n.slice(0,1).toUpperCase()}</div><b>{n}</b><span className="online-pill">Online</span></div>)}</div></>;
 }
