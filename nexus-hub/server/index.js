@@ -96,19 +96,20 @@ io.on("connection", (socket) => {
     io.to("chat:"+room).emit("message:deleted",{id:messageId});
   });
 
-  socket.on("lobby:create", ({ username, game }) => {
+  socket.on("lobby:create", ({ username, game, isPrivate = false }) => {
     const code = makeCode();
     const lobby = {
       code,
       game: String(game || "Party Arena").slice(0, 40),
       host: String(username || "Guest").slice(0, 24),
       players: [String(username || "Guest").slice(0, 24)],
-      started: false
+      started: false,
+      private: Boolean(isPrivate)
     };
     rooms.set(code, lobby);
     socket.join(`lobby:${code}`);
     socket.emit("lobby:created", lobby);
-    io.emit("lobby:list", [...rooms.values()]);
+    io.emit("lobby:list", [...rooms.values()].filter(room => !room.private));
   });
 
   socket.on("lobby:join", ({ code, username }) => {
@@ -144,7 +145,7 @@ io.on("connection", (socket) => {
     socket.leave(`lobby:${key}`);
     if (lobby) {
       lobby.players = lobby.players.filter(p => p !== username);
-      if (!lobby.players.length || (!anotherSession && lobby.host === username)) { rooms.delete(key); gameSessions.delete(key); }
+      if (!lobby.players.length || lobby.host === username) { rooms.delete(key); gameSessions.delete(key); }
       else io.to(`lobby:${key}`).emit("lobby:update", lobby);
       io.emit("lobby:list", [...rooms.values()]);
     }
