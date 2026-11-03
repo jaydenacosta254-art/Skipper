@@ -165,19 +165,45 @@ create table if not exists public.nexus_group_messages (
   created_at timestamptz not null default now()
 );
 alter table public.nexus_group_messages enable row level security;
+
+-- Check group membership through a helper function. This avoids ambiguous
+-- correlated references to the row currently being checked by the RLS policy.
+create or replace function public.nexus_is_group_member(p_group_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    exists (
+      select 1
+      from public.nexus_group_members m
+      where m.group_id = p_group_id
+        and m.user_id = auth.uid()
+    )
+    or exists (
+      select 1
+      from public.nexus_groups g
+      where g.id = p_group_id
+        and g.owner_id = auth.uid()
+    );
+$$;
+
+revoke all on function public.nexus_is_group_member(uuid) from public;
+grant execute on function public.nexus_is_group_member(uuid) to authenticated;
+
 drop policy if exists "Group members read group messages" on public.nexus_group_messages;
 create policy "Group members read group messages" on public.nexus_group_messages
-for select to authenticated using (
-  exists (select 1 from public.nexus_group_members m where m.group_id = nexus_group_messages.group_id and m.user_id = auth.uid())
-  or exists (select 1 from public.nexus_groups g where g.id = nexus_group_messages.group_id and g.owner_id = auth.uid())
-);
+for select to authenticated
+using (public.nexus_is_group_member(group_id));
+
 drop policy if exists "Group members send group messages" on public.nexus_group_messages;
 create policy "Group members send group messages" on public.nexus_group_messages
-for insert to authenticated with check (
-  auth.uid() = user_id and (
-    exists (select 1 from public.nexus_group_members m where m.group_id = nexus_group_messages.group_id and m.user_id = auth.uid())
-    or exists (select 1 from public.nexus_groups g where g.id = nexus_group_messages.group_id and g.owner_id = auth.uid())
-  )
+for insert to authenticated
+with check (
+  auth.uid() = user_id
+  and public.nexus_is_group_member(group_id)
 );
 
 create table if not exists public.nexus_news_posts (
