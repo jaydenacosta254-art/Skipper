@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no">
+<title>Classroom</title>
+<link rel="shortcut icon" href="https://cdn.jsdelivr.net/gh/docs-g-classroommyflies/zalman@main/TemplateData/favicon.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/docs-g-classroommyflies/zalman@main/TemplateData/unityapp-0.8.4.css">
+<style>
+html,body,#unity-container{width:100%;height:100%;margin:0;overflow:hidden;background:#111}
+#unity-container{position:fixed;inset:0}
+#unity-canvas{width:100%;height:100%;display:block;outline:none}
+#unity-warning{position:absolute;top:10px;left:10px;right:10px;z-index:5;color:white}
+</style>
+<script>
+window.YaGames = {
+ init: () => Promise.resolve({
+  on:()=>{}, environment:{i18n:{lang:"en"}},
+  adv:{showFullscreenAdv:o=>{o?.callbacks?.onOpen?.();setTimeout(()=>o?.callbacks?.onClose?.(true),50)},showRewardedVideo:o=>{o?.callbacks?.onOpen?.();setTimeout(()=>{o?.callbacks?.onRewarded?.();o?.callbacks?.onClose?.()},50)},showBannerAdv:()=>Promise.resolve({stickyAdvIsShowing:false}),hideBannerAdv:()=>Promise.resolve(),getBannerAdvStatus:()=>Promise.resolve({stickyAdvIsShowing:false})},
+  auth:{openAuthDialog:()=>Promise.resolve()},
+  getPlayer:()=>Promise.resolve({isAuthorized:()=>false,getName:()=>"",getUniqueID:()=>"stub-id",getPhoto:()=>"",getPayingStatus:()=>"unknown",getData:()=>Promise.resolve({}),setData:()=>Promise.resolve()}),
+  getPayments:()=>Promise.reject(new Error("payments not available")),
+  leaderboards:{getDescription:()=>Promise.resolve({default:false,description:{invert_sort_order:false,score_format:{options:{decimal_offset:0}},type:"numeric"}}),getEntries:()=>Promise.resolve({entries:[]}),setScore:()=>{}}
+ })
+};
+</script>
+<script src="https://cdn.jsdelivr.net/gh/docs-g-classroommyflies/zalman@main/TemplateData/unityapp-0.8.4.min.js"></script>
+</head>
+<body>
+<div id="unity-container" class="unity-desktop">
+ <canvas id="unity-canvas" tabindex="0" width="636" height="460"></canvas>
+ <div id="unity-content" class="fade-out" style="display:none">
+  <div id="unity-game-logo"><img width="100%" src="https://cdn.jsdelivr.net/gh/docs-g-classroommyflies/zalman@main/logo.png" alt="Classroom" onerror="this.style.display='none'"></div>
+  <div class="unity-progress-bar stripes animated reverse slower"><span id="unity-progress-bar-fill" class="progress-bar-inner" style="width:2.6rem"></span></div>
+ </div>
+ <div id="unity-warning"></div>
+</div>
+<script>
+const BUILD_URL="https://cdn.jsdelivr.net/gh/docs-g-classroommyflies/zalman@main/Build";
+const DATA_FILE="6de906397cd579daa7f7e8fa16294d67.data";
+const WASM_FILE="a5d4f54385c367ba46a38df80e9e248a.wasm";
+let resolveBlobs;
+const blobsReady=new Promise(resolve=>{resolveBlobs=resolve});
+window.initUnity=async function(){
+ const {dataUrl,wasmUrl}=await blobsReady;
+ const cfg=window.unityapp.initUnityConfig;
+ const buildUrl=cfg.buildUrl||BUILD_URL;
+ const canvas=document.querySelector("#unity-canvas");
+ const progressEl=document.querySelector("#unity-progress-bar-fill");
+ const warningEl=document.querySelector("#unity-warning");
+ const config={
+  dataUrl,frameworkUrl:/^https?:\/\//.test(cfg.filenameFramework)?cfg.filenameFramework:buildUrl+"/"+cfg.filenameFramework,
+  codeUrl:wasmUrl,streamingAssetsUrl:"StreamingAssets",companyName:cfg.companyName,productName:cfg.productName,productVersion:cfg.productVersion,
+  matchWebGLToCanvasSize:true,devicePixelRatio:Math.min(window.devicePixelRatio||1,2),
+  showBanner:(msg,type)=>{if(!warningEl)return;const d=document.createElement("div");d.textContent=msg;d.style.cssText="padding:10px;background:"+(type==="error"?"#b91c1c":"#a16207");warningEl.appendChild(d);setTimeout(()=>d.remove(),5000)}
+ };
+ const loader=document.createElement("script");
+ loader.src=/^https?:\/\//.test(cfg.filenameLoader)?cfg.filenameLoader:buildUrl+"/"+cfg.filenameLoader;
+ loader.onload=()=>window.unityapp.createUnityInstance(canvas,config,p=>{if(progressEl)progressEl.style.width=(p*100)+"%"},instance=>{window.unityInstance=instance;const content=document.getElementById("unity-content");if(content){content.classList.add("fade-out");setTimeout(()=>content.style.display="none",500)}},()=>{const w=document.getElementById("unity-warning");w.textContent="This game could not start on this browser or device."},()=>{const content=document.getElementById("unity-content");if(content){content.style.display="";content.classList.toggle("fade-out")}});
+ loader.onerror=()=>{warningEl.textContent="Could not load the Unity game loader."};
+ document.body.appendChild(loader);
+};
+window.unityapp.init({
+ unity:{companyName:"new",productName:"Classroom",productVersion:"1.0.0",filenameLoader:"https://cdn.jsdelivr.net/gh/docs-g-classroommyflies/zalman@main/Build/d50cc3ee055c5f5e237cc0492cefedce.js",filenameData:DATA_FILE,filenameFramework:"https://cdn.jsdelivr.net/gh/docs-g-classroommyflies/zalman@main/Build/dab8e12a279f50c78945c1f0088553e9.js",filenameCode:WASM_FILE,filenameMemory:"",filenameSymbols:"",configPreset:"1x1-1"},
+ yandex:{adv:{onAdvClose:()=>{}},screen:{fullscreen:true,orientation:{value:window.unityapp.isMobile?"portrait":"landscape",lock:window.unityapp.isMobile}}},
+ storage:{autoSavePeriod:10000,remoteKey:"matches_played"}
+});
+(async()=>{
+ const bar=document.querySelector("#unity-progress-bar-fill");
+ const setBar=p=>{if(bar)bar.style.width=p+"%"};
+ async function fetchParts(filename,count,start,end){
+  const chunks=[];
+  for(let i=0;i<count;i++){
+   const url=BUILD_URL+"/"+filename+".part"+i;
+   const response=await fetch(url);
+   if(!response.ok)throw new Error("Game file request failed: HTTP "+response.status);
+   chunks.push(new Uint8Array(await response.arrayBuffer()));
+   setBar(Math.round(start+(end-start)*(i+1)/count));
+  }
+  const total=chunks.reduce((sum,chunk)=>sum+chunk.length,0);
+  const merged=new Uint8Array(total);let offset=0;
+  for(const chunk of chunks){merged.set(chunk,offset);offset+=chunk.length}
+  return URL.createObjectURL(new Blob([merged]));
+ }
+ try{
+  setBar(2);
+  const [dataUrl,wasmUrl]=await Promise.all([fetchParts(DATA_FILE,5,2,55),fetchParts(WASM_FILE,4,55,90)]);
+  setBar(92);resolveBlobs({dataUrl,wasmUrl});
+ }catch(error){console.error(error);document.getElementById("unity-warning").textContent="Game loading failed: "+error.message}
+})();
+</script>
+</body>
+</html>
