@@ -7,12 +7,12 @@ import { randomBytes } from "node:crypto";
 
 const app = express();
 const httpServer = createServer(app);
-const allowedOrigin = process.env.CLIENT_ORIGIN || "http://localhost:5173";
-app.use(cors({ origin: allowedOrigin }));
+const allowedOrigins = [process.env.CLIENT_ORIGIN, "https://jaydenacosta254-art.github.io", "http://localhost:5173"].filter(Boolean);
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
 const io = new Server(httpServer, {
-  cors: { origin: allowedOrigin, methods: ["GET", "POST"] }
+  cors: { origin: allowedOrigins, methods: ["GET", "POST"] }
 });
 
 const rooms = new Map();
