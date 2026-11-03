@@ -580,18 +580,52 @@ function GamesPage({ rooms, myLobby, lobbyCode, setLobbyCode, lobbyError, create
 
 function GoogleSearchPage() {
   const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [searched, setSearched] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function search(event) {
+    event.preventDefault();
+    const term = query.trim();
+    if (!term) return;
+    setLoading(true); setError(""); setSearched(term); setResults([]);
+    try {
+      const response = await fetch(`${API}/api/search?q=${encodeURIComponent(term)}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Search failed.");
+      setResults(data.results || []);
+      if (!data.results?.length) setError("No results came back. Try another search.");
+    } catch (err) {
+      setError(err.message || "Search is unavailable right now.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return <section className="social-panel nexus-web-search" style={{maxWidth:1100,margin:"0 auto",padding:24}}>
     <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
       <div style={{width:46,height:46,borderRadius:14,display:"grid",placeItems:"center",background:"#de5833",color:"#fff",fontWeight:800,fontSize:22}}>D</div>
       <div><div className="eyebrow">NEXUS WEB</div><h1 style={{margin:0}}>DuckDuckGo Search</h1></div>
     </div>
-    <p className="muted" style={{margin:"12px 0 20px"}}>Search the web with DuckDuckGo.</p>
-    <form action="https://duckduckgo.com/" method="GET" target="_blank" rel="noreferrer" style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-      <input aria-label="Search the web" name="q" type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search the web…" required style={{flex:"1 1 280px",minWidth:0,padding:"14px 16px",borderRadius:12,border:"1px solid var(--border)",background:"var(--input-bg, transparent)",color:"inherit",fontSize:16}}/>
-      <button type="submit" disabled={!query.trim()} style={{padding:"12px 22px",borderRadius:12,border:0,background:"#de5833",color:"#fff",fontWeight:700,cursor:"pointer"}}>Search</button>
+    <p className="muted" style={{margin:"12px 0 20px"}}>Search the web and view results right here in NEXUS.</p>
+    <form onSubmit={search} style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+      <input aria-label="Search the web" type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search the web…" required style={{flex:"1 1 280px",minWidth:0,padding:"14px 16px",borderRadius:12,border:"1px solid var(--border)",background:"var(--input-bg, transparent)",color:"inherit",fontSize:16}}/>
+      <button type="submit" disabled={loading || !query.trim()} style={{padding:"12px 22px",borderRadius:12,border:0,background:"#de5833",color:"#fff",fontWeight:700,cursor:"pointer",opacity:loading?0.7:1}}>{loading ? "Searching…" : "Search"}</button>
     </form>
-    <p className="muted" style={{fontSize:12,marginTop:16}}>DuckDuckGo search results open in a new tab. DuckDuckGo does not permit its search pages to be embedded inside other websites.</p>
+    {loading && <p className="muted" style={{marginTop:20}}>Searching DuckDuckGo…</p>}
+    {error && <p className="form-error" style={{marginTop:20}}>{error}</p>}
+    {results.length > 0 && <div style={{marginTop:24}}>
+      <p className="muted" style={{fontSize:13}}>Results for “{searched}” · {results.length} results</p>
+      <div style={{display:"grid",gap:16}}>
+        {results.map((result,index) => <article key={result.url + index} style={{padding:"14px 0",borderBottom:"1px solid var(--border)"}}>
+          <a href={result.url} target="_blank" rel="noopener noreferrer" style={{fontSize:18,fontWeight:650,color:"var(--accent, #de5833)",textDecoration:"none"}}>{result.title}</a>
+          <div style={{fontSize:12,opacity:0.7,overflowWrap:"anywhere",marginTop:4}}>{result.url}</div>
+          {result.snippet && <p style={{margin:"7px 0 0",lineHeight:1.5}}>{result.snippet}</p>}
+        </article>)}
+      </div>
+    </div>}
+    <p className="muted" style={{fontSize:12,marginTop:18}}>Search results are provided by DuckDuckGo.</p>
   </section>;
 }
 
