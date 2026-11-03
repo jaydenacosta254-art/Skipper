@@ -115,6 +115,14 @@ export default function App() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  useEffect(() => {
+    if (!searchOpen) return;
+    const closeSearchOnOutsideClick = (event) => {
+      if (!event.target.closest(".search-wrap")) setSearchOpen(false);
+    };
+    document.addEventListener("pointerdown", closeSearchOnOutsideClick);
+    return () => document.removeEventListener("pointerdown", closeSearchOnOutsideClick);
+  }, [searchOpen]);
   const [adminStats, setAdminStats] = useState({ online: 0, rooms: 0, games: 3 });
   const [playerStats, setPlayerStats] = useState({ xp: 0, level: 1, games_played: 0, daily_claim_date: null, selected_theme: "violet" });
   const [activityFeed, setActivityFeed] = useState([]);
