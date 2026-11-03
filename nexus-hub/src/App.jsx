@@ -31,6 +31,16 @@ const starterGames = [
     externalUrl: "https://eaglercraft.q13x.com/1.8.8_2/js/"
   },
   {
+    name: "Roof Top Run",
+    type: "Adventure",
+    players: "Single-player",
+    mode: "single",
+    color: "orange",
+    icon: "🏃",
+    description: "Run, jump, and race across the rooftops in Roof Top Run.",
+    externalUrl: "/Skipper/rooftoprun/index.html"
+  },
+  {
     name: "Chicken Royale",
     type: "Adventure",
     players: "Single-player",
