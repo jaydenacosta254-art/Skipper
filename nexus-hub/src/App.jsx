@@ -129,6 +129,7 @@ export default function App() {
   const [adminStats, setAdminStats] = useState({ online: 0, rooms: 0, games: 3 });
   const [playerStats, setPlayerStats] = useState({ xp: 0, level: 1, games_played: 0, daily_claim_date: null, selected_theme: "violet" });
   const [activityFeed, setActivityFeed] = useState([]);
+  const [playerLeaderboard, setPlayerLeaderboard] = useState([]);
   const [rewardsLoading, setRewardsLoading] = useState(false);
 
   const username = profile?.username || guestProfile?.username || guest || "Guest";
@@ -183,12 +184,14 @@ export default function App() {
     setRewardsLoading(true);
     Promise.all([
       supabase.from("nexus_player_stats").select("xp,level,games_played,daily_claim_date,selected_theme").eq("user_id", session.user.id).maybeSingle(),
-      supabase.from("nexus_game_activity").select("username,activity_type,detail,created_at").order("created_at", { ascending: false }).limit(12)
-    ]).then(([statsResult, activityResult]) => {
+      supabase.from("nexus_game_activity").select("username,activity_type,detail,created_at").order("created_at", { ascending: false }).limit(12),
+      supabase.from("nexus_player_stats").select("username,xp,level,games_played").order("xp", { ascending: false }).limit(10)
+    ]).then(([statsResult, activityResult, leaderboardResult]) => {
       if (cancelled) return;
       if (statsResult.data) setPlayerStats(statsResult.data);
       else setPlayerStats({ xp: 0, level: 1, games_played: 0, daily_claim_date: null, selected_theme: "violet" });
       setActivityFeed(activityResult.data || []);
+      setPlayerLeaderboard(leaderboardResult.data || []);
       setRewardsLoading(false);
     }).catch(() => setRewardsLoading(false));
     return () => { cancelled = true; };
@@ -469,7 +472,7 @@ export default function App() {
         {notice && <div className="notice"><Sparkles size={16}/>{notice}<button onClick={() => setNotice("")}><X size={15}/></button></div>}
         {page === "home" && <HomePage username={username} online={online} rooms={rooms} setPage={setPage} setNotice={setNotice}/>}
         {page === "games" && <GamesPage socket={socket} username={username} session={session} rooms={rooms} myLobby={myLobby} lobbyCode={lobbyCode} setLobbyCode={setLobbyCode} lobbyError={lobbyError} createLobby={createLobby} joinLobby={joinLobby} leaveLobby={leaveLobby} startLobby={startLobby} recordGame={recordGame}/>}
-        {page === "rewards" && <RewardsPage username={username} stats={playerStats} activity={activityFeed} loading={rewardsLoading} onClaimDaily={claimDailyChallenge} onChooseTheme={chooseTheme}/>}
+        {page === "rewards" && <RewardsPage username={username} stats={playerStats} activity={activityFeed} leaderboard={playerLeaderboard} loading={rewardsLoading} onClaimDaily={claimDailyChallenge} onChooseTheme={chooseTheme}/>}
         {page === "chat" && <ChatPage username={username} online={online} messages={messages} channel={channel} setChannel={setChannel} messageText={messageText} setMessageText={setMessageText} sendMessage={sendChatMessage} chatFile={chatFile} setChatFile={setChatFile} replyTo={replyTo} setReplyTo={setReplyTo} reactToMessage={reactToMessage} editMessage={editMessage} deleteMessage={deleteMessage} reportMessage={reportMessage}/>}
         {page === "friends" && <PeoplePage online={online} session={session} friendRequests={friendRequests} addFriend={addFriend} respondFriend={respondFriend} openDM={openDM} blockUser={blockUser} dmTarget={dmTarget} dmMessages={dmMessages} dmText={dmText} setDmText={setDmText} sendDM={sendDM} closeDM={() => setDmTarget(null)}/>}
         {page === "admin" && (isAdmin ? <AdminPage stats={adminStats} online={online} reports={reports} updateReport={updateReport}/> : <div className="empty-state"><Shield/><h2>Admin access required</h2><p>Your account does not have administrator permissions.</p></div>)}
@@ -577,7 +580,7 @@ function PeoplePage({ online, session, friendRequests, addFriend, respondFriend,
  return <><div className="page-title-row"><div><div className="eyebrow">YOUR COMMUNITY</div><h1>People & friends</h1><p className="muted">Connect with members and start private conversations.</p></div><span className="live-tag"><i/> {online.length} ONLINE</span></div>{!session&&<div className="form-error">Sign in to use friends and private messages.</div>}{incoming.length>0&&<section className="social-panel"><h2>Friend requests</h2>{incoming.map(r=><div className="social-row" key={r.id}><span>Incoming friend request</span><button onClick={()=>respondFriend(r,true)}>Accept</button><button onClick={()=>respondFriend(r,false)}>Decline</button></div>)}</section>}<section className="social-panel"><h2>Friends ({accepted.length})</h2>{accepted.length?accepted.map(r=><div className="social-row" key={r.id}><span>Friend connection</span><small>Accepted</small></div>):<p className="muted">Accepted friends will appear here.</p>}</section><div className="section-heading"><div><h2>People online</h2><p>Send a friend request to someone in the community.</p></div></div><div className="people-grid">{online.map((n,i)=><div className="person-card" key={n+i}><div className="avatar large">{n.slice(0,1).toUpperCase()}</div><div><b>{n}</b><small><i/> Online now</small></div><button className="secondary-btn" onClick={()=>addFriend(n)}>Add friend</button><button className="secondary-btn" onClick={()=>openDM(n)}>Message</button><button className="quiet-btn" onClick={()=>blockUser(n)}>Block</button></div>)}{!online.length&&<div className="empty-state"><Users/><h2>It's quiet in here</h2><p>When people connect, they'll show up here.</p></div>}</div>{dmTarget&&<section className="dm-panel"><div className="dm-head"><h2>Message {dmTarget.username}</h2><button onClick={closeDM}>Close</button></div><div className="dm-history">{dmMessages.map(m=><p key={m.id}><b>{m.sender_id===session?.user?.id?"You":dmTarget.username}:</b> {m.body}</p>)}</div><form className="message-composer" onSubmit={sendDM}><input value={dmText} onChange={e=>setDmText(e.target.value)} placeholder="Write a private message..." maxLength={2000}/><button className="send-btn" disabled={!dmText.trim()}><ArrowRight/></button></form></section>}</>;
 }
 
-function RewardsPage({ username, stats, activity, loading, onClaimDaily, onChooseTheme }) {
+function RewardsPage({ username, stats, activity, leaderboard, loading, onClaimDaily, onChooseTheme }) {
   const xp = stats?.xp || 0;
   const level = Math.floor(xp / 100) + 1;
   const progress = xp % 100;
@@ -598,6 +601,7 @@ function RewardsPage({ username, stats, activity, loading, onClaimDaily, onChoos
       <section className="reward-card"><div className="reward-card-heading"><span className="reward-icon"><Medal/></span><span className="eyebrow">ACHIEVEMENTS</span></div><h2>Your milestones</h2><div className="achievement-list">{achievements.map(a=>{const Icon=a.icon;return <div className={"achievement-row "+(a.unlocked?"unlocked":"locked")} key={a.name}><span><Icon size={19}/></span><div><b>{a.name}</b><small>{a.description}</small></div><strong>{a.unlocked?<CheckCircle2 size={18}/>:"Locked"}</strong></div>})}</div></section>
     </div>
     <section className="reward-card theme-card"><div className="reward-card-heading"><span className="reward-icon"><Palette/></span><span className="eyebrow">PROFILE CUSTOMIZATION</span></div><h2>Choose your profile theme</h2><p className="muted">Unlock more colors as you level up.</p><div className="theme-options">{themes.map(t=>{const unlocked=xp>=t.unlock;return <button key={t.id} className={"theme-option theme-swatch-"+t.id+(stats?.selected_theme===t.id?" selected":"")} disabled={!unlocked} onClick={()=>onChooseTheme(t.id)}><span/><b>{t.name}</b><small>{unlocked?(stats?.selected_theme===t.id?"Selected":"Unlocked"):"Unlock at "+t.unlock+" XP"}</small></button>})}</div></section>
+    <section className="reward-card global-leaderboard"><div className="reward-card-heading"><span className="reward-icon"><Trophy/></span><span className="eyebrow">GLOBAL LEADERBOARD</span></div><h2>Top NEXUS players</h2>{leaderboard?.length?leaderboard.map((player,i)=><div className="activity-row" key={player.username+i}><b className="rank-number">#{i+1}</b><div><b>{player.username}</b><small>Level {player.level} · {player.games_played} games</small></div><strong>{player.xp} XP</strong></div>):<div className="empty-small">No ranked players yet. Start earning XP to appear here.</div>}</section>
     <section className="reward-card activity-card"><div className="reward-card-heading"><span className="reward-icon"><Activity/></span><span className="eyebrow">FRIENDS ACTIVITY</span></div><h2>Community activity</h2><p className="muted">Recent games and challenges shared by NEXUS members.</p>{loading?<p className="muted">Loading activity…</p>:activity?.length?activity.map((item,i)=><div className="activity-row" key={item.id||item.created_at+i}><span className="activity-avatar">{(item.username||"N").slice(0,1).toUpperCase()}</span><div><b>{item.username}</b><small>{item.detail}</small></div><time>{new Date(item.created_at).toLocaleDateString()}</time></div>):<div className="empty-small">No activity yet. Play a game to start the feed!</div>}</section>
   </div>;
 }
