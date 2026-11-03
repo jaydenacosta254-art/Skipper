@@ -9,7 +9,7 @@ import {
 import { supabase } from "./supabase";
 
 const API = import.meta.env.VITE_SERVER_URL || "";
-const GOOGLE_CSE_ID = import.meta.env.VITE_GOOGLE_CSE_ID || "";
+const GOOGLE_CSE_ID = import.meta.env.VITE_GOOGLE_CSE_ID || "62fa2ca9e562c4a8f";
 const starterGames = [
   {
     name: "Retro Bowl",
@@ -620,9 +620,9 @@ function GoogleSearchPage() {
     <p className="muted" style={{margin:"12px 0 20px"}}>Search the web and view results right here inside NEXUS.</p>
     {!GOOGLE_CSE_ID ? <div className="empty-small" style={{padding:20}}>
       <h3>One quick setup step</h3>
-      <p>Create a free Google Programmable Search Engine, set it to search the entire web, then add its Search engine ID as the GitHub repository variable <b>VITE_GOOGLE_CSE_ID</b>.</p>
+      <p>Your Google search engine is connected. Configure its included websites in the Google control panel. New engines can search up to 50 selected domains rather than the entire web.</p>
       <a href="https://programmablesearchengine.google.com/controlpanel/all" target="_blank" rel="noreferrer">Open Google Programmable Search Engine</a>
-      <p className="muted">After you have the Search engine ID, send it here. It is a public configuration ID, not a password or secret.</p>
+      <p className="muted">Search results will appear inside NEXUS.</p>
     </div> : <div ref={mountRef} className="nexus-google-search">
       <div className="gcse-search"></div>
       {!scriptReady && !scriptError && <p className="muted">Loading search…</p>}
