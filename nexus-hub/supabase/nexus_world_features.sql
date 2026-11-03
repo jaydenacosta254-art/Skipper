@@ -143,14 +143,14 @@ language sql
 stable
 security definer
 set search_path = public
-as $
+as $nexus$
   select exists (
     select 1
     from public.nexus_groups g
     where g.id = p_group_id
       and g.owner_id = auth.uid()
   );
-$;
+$nexus$;
 revoke all on function public.nexus_is_group_owner(uuid) from public;
 grant execute on function public.nexus_is_group_owner(uuid) to authenticated;
 drop policy if exists "Members can view group rosters" on public.nexus_group_members;
