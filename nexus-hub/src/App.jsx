@@ -31,13 +31,13 @@ const starterGames = [
     externalUrl: "https://eaglercraft.q13x.com/1.8.8_2/js/"
   },
   {
-    name: "Classroom",
+    name: "Chicken Royale",
     type: "Adventure",
     players: "Single-player",
     mode: "single",
     color: "blue",
     icon: "🏫",
-    description: "Jump into the Classroom Unity game.",
+    description: "Drop into Chicken Royale and battle to be the last player standing.",
     externalUrl: "/Skipper/classroom/index.html"
   },
   {
