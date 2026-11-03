@@ -118,10 +118,17 @@ export default function App() {
   useEffect(() => {
     if (!searchOpen) return;
     const closeSearchOnOutsideClick = (event) => {
-      if (!event.target.closest(".search-wrap")) setSearchOpen(false);
+      const target = event.target;
+      const clickedInsideSearch = target instanceof Element && target.closest(".search-wrap");
+      if (!clickedInsideSearch) setSearchOpen(false);
     };
-    document.addEventListener("pointerdown", closeSearchOnOutsideClick);
-    return () => document.removeEventListener("pointerdown", closeSearchOnOutsideClick);
+    // Capture phase ensures other components cannot stop the outside-click handler.
+    document.addEventListener("pointerdown", closeSearchOnOutsideClick, true);
+    document.addEventListener("click", closeSearchOnOutsideClick, true);
+    return () => {
+      document.removeEventListener("pointerdown", closeSearchOnOutsideClick, true);
+      document.removeEventListener("click", closeSearchOnOutsideClick, true);
+    };
   }, [searchOpen]);
   const [adminStats, setAdminStats] = useState({ online: 0, rooms: 0, games: 3 });
   const [playerStats, setPlayerStats] = useState({ xp: 0, level: 1, games_played: 0, daily_claim_date: null, selected_theme: "violet" });
