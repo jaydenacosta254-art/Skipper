@@ -64,6 +64,7 @@ export default function NexusWorld({
   const [groupDraft, setGroupDraft] = useState({ name: "", description: "" });
   const [groupMessage, setGroupMessage] = useState("");
   const [showcaseGames, setShowcaseGames] = useState([]);
+  const [communityShowcases, setCommunityShowcases] = useState([]);
   const [news, setNews] = useState([]);
   const [newsDraft, setNewsDraft] = useState({ title: "", body: "" });
   const [suggestionDraft, setSuggestionDraft] = useState({ name: "", url: "", reason: "" });
@@ -80,9 +81,12 @@ export default function NexusWorld({
   const myGroupIds = memberRows.map(row => row.group_id);
 
   async function load() {
-    if (!supabase || !userId) {
+    if (!supabase) return;
+    if (!userId) {
       setCollections([]); setCollectionItems([]); setGroupRows([]); setMemberRows([]);
-      setNews([]); setSuggestions([]); setReports([]);
+      setSuggestions([]); setReports([]);
+      const { data } = await supabase.from("nexus_news_posts").select("*").order("published_at", { ascending: false }).limit(20);
+      setNews(data || []);
       return;
     }
     setBusy(true);
@@ -93,7 +97,8 @@ export default function NexusWorld({
       supabase.from("nexus_groups").select("*").order("created_at", { ascending: false }).limit(40),
       supabase.from("nexus_group_members").select("group_id,user_id,role").eq("user_id", userId),
       supabase.from("nexus_profile_showcase").select("featured_games").eq("user_id", userId).maybeSingle(),
-      supabase.from("nexus_news_posts").select("*").order("published_at", { ascending: false }).limit(20)
+      supabase.from("nexus_news_posts").select("*").order("published_at", { ascending: false }).limit(20),
+      supabase.from("nexus_profile_showcase").select("username,featured_games").order("updated_at", { ascending: false }).limit(30)
     ];
     if (isAdmin) {
       jobs.push(supabase.from("nexus_game_suggestions").select("*").order("created_at", { ascending: false }).limit(50));
@@ -110,9 +115,10 @@ export default function NexusWorld({
     if (results[3].data) setMemberRows(results[3].data);
     if (results[4].data?.featured_games) setShowcaseGames(results[4].data.featured_games);
     if (results[5].data) setNews(results[5].data);
+    if (results[6].data) setCommunityShowcases(results[6].data);
     if (isAdmin) {
-      if (results[6]?.data) setSuggestions(results[6].data);
-      if (results[7]?.data) setReports(results[7].data);
+      if (results[7]?.data) setSuggestions(results[7].data);
+      if (results[8]?.data) setReports(results[8].data);
     }
     setBusy(false);
   }
@@ -315,6 +321,7 @@ export default function NexusWorld({
           <h3>Player showcase</h3><p className="muted">Pin up to four games to feature on your player card.</p><div className="world-check-grid">{games.map(game => <label key={game.name}><input type="checkbox" checked={showcaseGames.includes(game.name)} disabled={!showcaseGames.includes(game.name) && showcaseGames.length >= 4} onChange={e => setShowcaseGames(rows => e.target.checked ? [...rows, game.name] : rows.filter(name => name !== game.name))}/>{game.name}</label>)}</div><button className="primary-btn" onClick={saveShowcase}>Save showcase</button>
         </section>
       </div>
+      <section className="world-panel"><h2><Sparkles/> Community player showcases</h2><p className="muted">Games other members have pinned to their player cards.</p><div className="world-showcases">{communityShowcases.map((row, index) => <article key={row.username + index}><b>{row.username}</b><div>{(row.featured_games || []).map(name => <span key={name}>{name}</span>)}</div></article>)}{!communityShowcases.length && <p className="world-empty">Member showcases will appear here when players save them.</p>}</div></section>
       <section className="world-panel"><h2><Users/> Community groups</h2><p className="muted">Create a group or join one to share a private group discussion.</p>
         <form className="world-form" onSubmit={createGroup}><input required maxLength={40} placeholder="Group name" value={groupDraft.name} onChange={e => setGroupDraft(v => ({...v,name:e.target.value}))}/><input maxLength={180} placeholder="Short description" value={groupDraft.description} onChange={e => setGroupDraft(v => ({...v,description:e.target.value}))}/><button className="primary-btn"><Plus size={14}/> Create group</button></form>
         <div className="world-groups">{groupRows.map(group => { const isMember = myGroupIds.includes(group.id) || group.owner_id === userId; return <article key={group.id} className="world-group-card"><div><b>{group.name}</b><small>{group.description || "A NEXUS community group"}</small></div>{isMember ? <button className="secondary-btn" onClick={() => setSelectedGroup(group.id)}>Open</button> : <button className="primary-btn" onClick={() => joinGroup(group)}>Join</button>}</article>; })}{!groupRows.length && <p className="world-empty">No groups yet. Start the first one.</p>}</div>
