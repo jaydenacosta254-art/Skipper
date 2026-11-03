@@ -43,7 +43,7 @@
 .world-check-grid label{display:flex;align-items:center;gap:7px;font-size:10px;color:#d6deeb}
 .world-check-grid input{accent-color:#9b83ff}
 .world-decoration-options,.world-layout-options,.world-background-options{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 14px}
-.world-profile-preview{position:relative;isolation:isolate;overflow:hidden;display:grid;gap:7px;min-height:150px;padding:20px;border:1px solid #4b416d;border-radius:13px;background:linear-gradient(120deg,#29224a,#111827);animation:worldFloat 5s ease-in-out infinite}
+.world-profile-preview{position:relative;isolation:isolate;overflow:hidden;display:grid;gap:7px;min-height:150px;padding:20px;border:1px solid #4b416d;border-radius:13px;background:linear-gradient(120deg,#29224a,#111827)}
 .world-profile-preview>b{font:700 20px 'Space Grotesk'}
 .world-profile-preview>small{font-size:10px;color:#bbc2d2}
 .world-preview-glow{position:absolute;right:24px;top:10px;font-size:48px;color:#c8b9ff;opacity:.4}
@@ -52,7 +52,7 @@
 .world-decoration-orbit:before,.world-decoration-orbit:after{content:"";position:absolute;z-index:-1;width:160px;height:160px;right:-20px;top:-20px;border:1px solid #c9b8ff66;border-radius:50%;animation:worldSpin 12s linear infinite}
 .world-decoration-orbit:after{width:115px;height:115px;right:3px;top:3px;animation-direction:reverse}
 .world-decoration-spark .world-preview-glow{animation:worldSpin 7s linear infinite}
-.world-decoration-pulse{box-shadow:0 0 0 1px #a78bfa55,0 0 24px #a78bfa22}
+.world-decoration-pulse{animation:worldFloat 5s ease-in-out infinite;box-shadow:0 0 0 1px #a78bfa55,0 0 24px #a78bfa22}.world-decoration-orbit{animation:worldFloat 5s ease-in-out infinite}
 .world-layout-preview{display:grid;gap:7px;margin-top:14px}
 .world-layout-preview div{padding:10px;border-radius:8px;background:#202b3e;color:#d5dceb;font-size:10px}
 .world-layout-preview.layout-spotlight{grid-template-columns:2fr 1fr}.world-layout-preview.layout-spotlight div:first-child{grid-row:span 2}
