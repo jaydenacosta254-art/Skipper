@@ -103,7 +103,12 @@ create table if not exists public.nexus_notifications (
 );
 alter table public.nexus_notifications enable row level security;
 drop policy if exists "Users manage their notifications" on public.nexus_notifications;
-create policy "Users manage their notifications" on public.nexus_notifications for all to authenticated using(auth.uid()=user_id) with check(auth.uid()=user_id);
+drop policy if exists "Users read their notifications" on public.nexus_notifications;
+drop policy if exists "Users update their notifications" on public.nexus_notifications;
+drop policy if exists "Users create notifications as themselves" on public.nexus_notifications;
+create policy "Users read their notifications" on public.nexus_notifications for select to authenticated using(auth.uid()=user_id);
+create policy "Users update their notifications" on public.nexus_notifications for update to authenticated using(auth.uid()=user_id) with check(auth.uid()=user_id);
+create policy "Users create notifications as themselves" on public.nexus_notifications for insert to authenticated with check(auth.uid()=actor_id);
 
 create table if not exists public.chat_reports (
  id uuid primary key default gen_random_uuid(),
