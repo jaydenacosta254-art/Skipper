@@ -127,6 +127,9 @@ export default function App() {
   const [notice, setNotice] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [adminStats, setAdminStats] = useState({ online: 0, rooms: 0, games: 3 });
+  const [playerStats, setPlayerStats] = useState({ xp: 0, level: 1, games_played: 0, daily_claim_date: null, selected_theme: "violet" });
+  const [activityFeed, setActivityFeed] = useState([]);
+  const [rewardsLoading, setRewardsLoading] = useState(false);
 
   const username = profile?.username || guestProfile?.username || guest || "Guest";
   const isAdmin = profile?.role === "admin";
