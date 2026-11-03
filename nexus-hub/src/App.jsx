@@ -233,6 +233,7 @@ export default function App() {
   const nav = [
     { id: "home", label: "Overview", icon: LayoutDashboard },
     { id: "games", label: "Games & lobbies", icon: Gamepad2 },
+    { id: "rewards", label: "Rewards & levels", icon: Trophy },
     { id: "chat", label: "Community chat", icon: MessageCircle },
     { id: "friends", label: "People", icon: Users },
     ...(isAdmin ? [{ id: "admin", label: "Admin panel", icon: Shield }] : [])
@@ -406,7 +407,43 @@ export default function App() {
     setReports(old => old.filter(r => r.id !== report.id));
   }
 
-  function createLobby(game) { setLobbyError(""); socket?.emit("lobby:create", { username, game }); }
+
+  async function savePlayerStats(next) {
+    setPlayerStats(next);
+    if (!session?.user || !supabase) {
+      localStorage.setItem("nexus_player_stats_" + username.toLowerCase(), JSON.stringify(next));
+      return;
+    }
+    const { error } = await supabase.from("nexus_player_stats").upsert({ user_id: session.user.id, username, ...next, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+    if (error) setNotice("Rewards could not sync. Run the NEXUS rewards SQL setup in Supabase.");
+  }
+  async function recordGame(gameName) {
+    const key = "nexus_played_today_" + username.toLowerCase();
+    const today = new Date().toISOString().slice(0,10);
+    let played = {};
+    try { played = JSON.parse(localStorage.getItem(key) || "{}"); } catch {}
+    if (played[gameName] === today) return;
+    played[gameName] = today;
+    localStorage.setItem(key, JSON.stringify(played));
+    const xp = (playerStats.xp || 0) + 10;
+    await savePlayerStats({ ...playerStats, xp, level: Math.floor(xp / 100) + 1, games_played: (playerStats.games_played || 0) + 1 });
+    const activity = { username, activity_type: "played", detail: "Played " + gameName, created_at: new Date().toISOString() };
+    setActivityFeed(old => [activity, ...old].slice(0,12));
+    if (session?.user && supabase) await supabase.from("nexus_game_activity").insert({ user_id: session.user.id, ...activity });
+    setNotice("You earned 10 XP for playing " + gameName + "!");
+  }
+  async function claimDailyChallenge() {
+    const today = new Date().toISOString().slice(0,10);
+    if (playerStats.daily_claim_date === today) return setNotice("You already claimed today's challenge reward.");
+    const xp = (playerStats.xp || 0) + 25;
+    await savePlayerStats({ ...playerStats, xp, level: Math.floor(xp / 100) + 1, daily_claim_date: today });
+    const activity = { username, activity_type: "challenge", detail: "Completed the daily NEXUS challenge", created_at: new Date().toISOString() };
+    setActivityFeed(old => [activity, ...old].slice(0,12));
+    if (session?.user && supabase) await supabase.from("nexus_game_activity").insert({ user_id: session.user.id, ...activity });
+    setNotice("Daily challenge complete! You earned 25 XP.");
+  }
+  async function chooseTheme(theme) { await savePlayerStats({ ...playerStats, selected_theme: theme }); }
+  function createLobby(game) { setLobbyError(""); socket?.emit("lobby:create", { username, game }); recordGame(game); }
   function joinLobby(code) { setLobbyError(""); socket?.emit("lobby:join", { username, code }); }
   function leaveLobby() { socket?.emit("lobby:leave", { username, code: myLobby?.code }); setMyLobby(null); }
   function startLobby() { socket?.emit("lobby:start", { username, code: myLobby?.code }); }
