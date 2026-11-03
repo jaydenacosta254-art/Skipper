@@ -169,6 +169,31 @@ export default function App() {
     return () => { cancelled = true; };
   }, [session]);
 
+
+  useEffect(() => {
+    let cancelled = false;
+    const guestKey = "nexus_player_stats_" + username.toLowerCase();
+    if (!session?.user || !supabase) {
+      try {
+        const saved = JSON.parse(localStorage.getItem(guestKey) || "null");
+        setPlayerStats(saved || { xp: 0, level: 1, games_played: 0, daily_claim_date: null, selected_theme: "violet" });
+      } catch {}
+      return () => { cancelled = true; };
+    }
+    setRewardsLoading(true);
+    Promise.all([
+      supabase.from("nexus_player_stats").select("xp,level,games_played,daily_claim_date,selected_theme").eq("user_id", session.user.id).maybeSingle(),
+      supabase.from("nexus_game_activity").select("username,activity_type,detail,created_at").order("created_at", { ascending: false }).limit(12)
+    ]).then(([statsResult, activityResult]) => {
+      if (cancelled) return;
+      if (statsResult.data) setPlayerStats(statsResult.data);
+      else setPlayerStats({ xp: 0, level: 1, games_played: 0, daily_claim_date: null, selected_theme: "violet" });
+      setActivityFeed(activityResult.data || []);
+      setRewardsLoading(false);
+    }).catch(() => setRewardsLoading(false));
+    return () => { cancelled = true; };
+  }, [session, username]);
+
   useEffect(() => {
     if (!username || username === "Guest") return;
     const s = io(API || window.location.origin, { transports: ["websocket", "polling"] });
