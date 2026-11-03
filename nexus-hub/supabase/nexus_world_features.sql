@@ -144,7 +144,7 @@ create policy "Players join groups as themselves" on public.nexus_group_members
 for insert to authenticated with check (
   auth.uid() = user_id and (
     role = 'member' or exists (
-      select 1 from public.nexus_groups g where g.id = group_id and g.owner_id = auth.uid()
+      select 1 from public.nexus_groups g where g.id = nexus_group_messages.group_id and g.owner_id = auth.uid()
     )
   )
 );
@@ -152,7 +152,7 @@ drop policy if exists "Players or owners remove group members" on public.nexus_g
 create policy "Players or owners remove group members" on public.nexus_group_members
 for delete to authenticated using (
   auth.uid() = user_id or exists (
-    select 1 from public.nexus_groups g where g.id = group_id and g.owner_id = auth.uid()
+    select 1 from public.nexus_groups g where g.id = nexus_group_messages.group_id and g.owner_id = auth.uid()
   )
 );
 
@@ -168,15 +168,15 @@ alter table public.nexus_group_messages enable row level security;
 drop policy if exists "Group members read group messages" on public.nexus_group_messages;
 create policy "Group members read group messages" on public.nexus_group_messages
 for select to authenticated using (
-  exists (select 1 from public.nexus_group_members m where m.group_id = group_id and m.user_id = auth.uid())
-  or exists (select 1 from public.nexus_groups g where g.id = group_id and g.owner_id = auth.uid())
+  exists (select 1 from public.nexus_group_members m where m.group_id = nexus_group_messages.group_id and m.user_id = auth.uid())
+  or exists (select 1 from public.nexus_groups g where g.id = nexus_group_messages.group_id and g.owner_id = auth.uid())
 );
 drop policy if exists "Group members send group messages" on public.nexus_group_messages;
 create policy "Group members send group messages" on public.nexus_group_messages
 for insert to authenticated with check (
   auth.uid() = user_id and (
-    exists (select 1 from public.nexus_group_members m where m.group_id = group_id and m.user_id = auth.uid())
-    or exists (select 1 from public.nexus_groups g where g.id = group_id and g.owner_id = auth.uid())
+    exists (select 1 from public.nexus_group_members m where m.group_id = nexus_group_messages.group_id and m.user_id = auth.uid())
+    or exists (select 1 from public.nexus_groups g where g.id = nexus_group_messages.group_id and g.owner_id = auth.uid())
   )
 );
 
