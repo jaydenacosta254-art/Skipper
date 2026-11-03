@@ -69,12 +69,12 @@ export default function App() {
       const cleanName = metadataName.length >= 2 ? metadataName : `member_${user.id.slice(0, 8)}`;
       let { data: created, error } = await supabase.from("profiles").upsert(
         { id: user.id, username: cleanName, role: "member", avatar_url: null, bio: "", status: "Available" }, { onConflict: "id" }
-      ).select("username, role").single();
+      ).select("username, role, avatar_url, bio, status").single();
       if (error) {
         const fallbackName = `${cleanName.slice(0, 15)}_${user.id.slice(0, 6)}`;
         const retry = await supabase.from("profiles").upsert(
           { id: user.id, username: fallbackName, role: "member" }, { onConflict: "id" }
-        ).select("username, role").single();
+        ).select("username, role, avatar_url, bio, status").single();
         created = retry.data;
       }
       if (!cancelled) setProfile(created || { username: cleanName, role: "member" });
@@ -208,6 +208,7 @@ export default function App() {
         {page === "admin" && (isAdmin ? <AdminPage stats={adminStats} online={online}/> : <div className="empty-state"><Shield/><h2>Admin access required</h2><p>Your account does not have administrator permissions.</p></div>)}
       </div>
     </main>
+    {profileOpen && <ProfileEditor draft={profileDraft} setDraft={setProfileDraft} onSave={saveProfile} onClose={() => setProfileOpen(false)} busy={profileBusy} error={profileError} username={username} avatarUrl={profile?.avatar_url || guestProfile?.avatar_url}/>}
   </div>;
 }
 
