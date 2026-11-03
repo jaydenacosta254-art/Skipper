@@ -11,26 +11,6 @@ import { supabase } from "./supabase";
 const API = import.meta.env.VITE_SERVER_URL || "";
 const starterGames = [
   {
-    "name": "Party Arena",
-    "type": "Party",
-    "players": "2–8 players",
-    mode: "coming",
-    "color": "violet",
-    "icon": "🎉",
-    "description": "Quick rounds, ridiculous surprises, and bragging rights.",
-    "featured": true
-  },
-  {
-    "name": "Neon Racers",
-    "type": "Racing",
-    "players": "2–6 players",
-    mode: "multiplayer",
-    "color": "blue",
-    "icon": "🏎️",
-    "description": "Race your friends through glowing obstacle courses.",
-    "featured": true
-  },
-  {
     name: "Retro Bowl",
     type: "Sports",
     players: "Single-player",
@@ -59,44 +39,8 @@ const starterGames = [
     icon: "🏀",
     description: "Challenge someone to a fast-paced one-on-one basketball match.",
     externalUrl: "https://basketbros.io/"
-  },
-  {
-    "name": "Trivia Clash",
-    "type": "Trivia",
-    "players": "2–12 players",
-    mode: "multiplayer",
-    "color": "orange",
-    "icon": "🧠",
-    "description": "Put your random knowledge to the test."
-  },
-  {
-    "name": "Puzzle Pop",
-    "type": "Puzzle",
-    "players": "1–4 players",
-    mode: "coming",
-    "color": "green",
-    "icon": "🧩",
-    "description": "Solve clever puzzles together."
-  },
-  {
-    "name": "Pixel Quest",
-    "type": "Adventure",
-    "players": "1–4 players",
-    mode: "coming",
-    "color": "pink",
-    "icon": "🗺️",
-    "description": "Explore colorful worlds and take on challenges."
-  },
-  {
-    "name": "Arcade Rush",
-    "type": "Action",
-    "players": "1–4 players",
-    mode: "coming",
-    "color": "purple",
-    "icon": "🕹️",
-    "description": "Fast arcade challenges and high-score runs."
   }
-];
+];;
 
 export default function App() {
   const [session, setSession] = useState(null);
