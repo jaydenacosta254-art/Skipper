@@ -31,6 +31,16 @@ const starterGames = [
     externalUrl: "https://eaglercraft.q13x.com/1.8.8_2/js/"
   },
   {
+    name: "WorldGuessr",
+    type: "Puzzle",
+    players: "Single-player",
+    mode: "single",
+    color: "blue",
+    icon: "🌍",
+    description: "Explore a location and guess where in the world you are.",
+    externalUrl: "https://www.crazygames.com/embed/worldguessr"
+  },
+  {
     name: "Basket Bros",
     type: "Sports",
     players: "1v1 · Online / local",
