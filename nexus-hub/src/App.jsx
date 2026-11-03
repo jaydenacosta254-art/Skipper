@@ -113,19 +113,20 @@ export default function App() {
       if (authMode === "signup") {
         const cleanName = usernameInput.trim() || email.split("@")[0];
         if (cleanName.length < 2) throw new Error("Username must be at least 2 characters.");
-        const emailRedirectTo = window.location.hostname.endsWith("github.io")
-          ? `${window.location.origin}/Skipper/`
-          : `${window.location.origin}/`;
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo,
             data: { username: cleanName }
           }
         });
         if (error) throw error;
-        setAuthSuccess("Account created! Check your inbox for the confirmation link. After you click it, Nexus will sign you in automatically.");
+        if (data.session) {
+          setSession(data.session);
+          setAuthSuccess("Account created! You're now signed in to Nexus.");
+        } else {
+          setAuthError("Your account was created, but Supabase is still requiring email confirmation. Turn off email confirmations in Supabase Authentication settings, then try signing up again.");
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
