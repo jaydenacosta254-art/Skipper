@@ -19,6 +19,39 @@ const rooms = new Map();
 const users = new Map();
 const chatMessages = new Map();
 
+app.get("/api/youtube/search", async (req, res) => {
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: "YouTube search is not configured yet. Add YOUTUBE_API_KEY to the Render server environment." });
+  const q = String(req.query.q || "").trim().slice(0, 120);
+  if (!q) return res.status(400).json({ error: "Enter something to search for." });
+  try {
+    const params = new URLSearchParams({
+      key: apiKey,
+      part: "snippet",
+      q,
+      type: "video",
+      maxResults: "18",
+      safeSearch: "strict",
+      videoEmbeddable: "true",
+      regionCode: "US",
+      relevanceLanguage: "en"
+    });
+    const response = await fetch("https://www.googleapis.com/youtube/v3/search?" + params);
+    const data = await response.json();
+    if (!response.ok) return res.status(response.status).json({ error: data.error?.message || "YouTube search failed." });
+    const items = (data.items || []).filter(item => item.id?.videoId).map(item => ({
+      videoId: item.id.videoId,
+      title: item.snippet?.title || "Untitled video",
+      channel: item.snippet?.channelTitle || "YouTube creator",
+      description: item.snippet?.description || "",
+      thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || ""
+    }));
+    res.json({ items });
+  } catch {
+    res.status(502).json({ error: "Could not reach YouTube right now. Please try again." });
+  }
+});
+
 app.get("/api/health", (_req, res) => res.json({ ok: true, service: "Nexus API" }));
 app.get("/api/stats", (_req, res) => res.json({
   online: users.size,
