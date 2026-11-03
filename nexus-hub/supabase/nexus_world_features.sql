@@ -136,24 +136,36 @@ create table if not exists public.nexus_group_members (
   primary key (group_id, user_id)
 );
 alter table public.nexus_group_members enable row level security;
+
+create or replace function public.nexus_is_group_owner(p_group_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $
+  select exists (
+    select 1
+    from public.nexus_groups g
+    where g.id = p_group_id
+      and g.owner_id = auth.uid()
+  );
+$;
+revoke all on function public.nexus_is_group_owner(uuid) from public;
+grant execute on function public.nexus_is_group_owner(uuid) to authenticated;
 drop policy if exists "Members can view group rosters" on public.nexus_group_members;
 create policy "Members can view group rosters" on public.nexus_group_members
 for select to authenticated using (true);
 drop policy if exists "Players join groups as themselves" on public.nexus_group_members;
 create policy "Players join groups as themselves" on public.nexus_group_members
 for insert to authenticated with check (
-  auth.uid() = user_id and (
-    role = 'member' or exists (
-      select 1 from public.nexus_groups g where g.id = nexus_group_messages.group_id and g.owner_id = auth.uid()
-    )
-  )
+  auth.uid() = user_id
+  and (role = 'member' or public.nexus_is_group_owner(group_id))
 );
 drop policy if exists "Players or owners remove group members" on public.nexus_group_members;
 create policy "Players or owners remove group members" on public.nexus_group_members
 for delete to authenticated using (
-  auth.uid() = user_id or exists (
-    select 1 from public.nexus_groups g where g.id = nexus_group_messages.group_id and g.owner_id = auth.uid()
-  )
+  auth.uid() = user_id or public.nexus_is_group_owner(group_id)
 );
 
 create table if not exists public.nexus_group_messages (
