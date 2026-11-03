@@ -47,6 +47,7 @@ io.on("connection", (socket) => {
   socket.on("presence:join", ({ username }) => {
     const safeName = String(username || "Guest").slice(0, 24);
     users.set(socket.id, safeName);
+    socket.emit("lobby:list", [...rooms.values()]);
     io.emit("presence:update", [...users.values()]);
   });
 
@@ -144,6 +145,35 @@ io.on("connection", (socket) => {
       lobby.players = lobby.players.filter(p => p !== username);
       if (!lobby.players.length || lobby.host === username) { rooms.delete(key); gameSessions.delete(key); }
       else io.to(`lobby:${key}`).emit("lobby:update", lobby);
+      io.emit("lobby:list", [...rooms.values()]);
+    }
+  });
+
+  socket.on("disconnecting", () => {
+    const username = users.get(socket.id);
+    if (!username) return;
+
+    // Remove disconnected players from every lobby they were actually in.
+    // Keep the player listed if another tab/device with the same username
+    // is still connected to that same lobby.
+    for (const roomName of socket.rooms) {
+      if (!roomName.startsWith("lobby:")) continue;
+      const code = roomName.slice("lobby:".length);
+      const lobby = rooms.get(code);
+      if (!lobby) continue;
+
+      const roomSockets = io.sockets.adapter.rooms.get(roomName);
+      const anotherSession = roomSockets && [...roomSockets].some(id =>
+        id !== socket.id && users.get(id) === username
+      );
+      if (!anotherSession) lobby.players = lobby.players.filter(name => name !== username);
+
+      if (!lobby.players.length || lobby.host === username) {
+        rooms.delete(code);
+        gameSessions.delete(code);
+      } else {
+        io.to(roomName).emit("lobby:update", lobby);
+      }
       io.emit("lobby:list", [...rooms.values()]);
     }
   });
