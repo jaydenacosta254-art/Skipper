@@ -61,3 +61,15 @@
 @media(max-width:760px){.rewards-grid{grid-template-columns:1fr}.theme-card,.activity-card{grid-column:auto}.xp-hero{align-items:flex-start;gap:12px;padding:16px}.xp-level-icon{width:44px;height:44px}.xp-main h2{font-size:23px}.xp-total{margin-left:auto}.theme-options{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 .rank-number{width:28px;font:700 12px 'Space Grotesk';color:#b8a8ff}.global-leaderboard .activity-row>strong{font-size:10px;color:#cfc4ff}
+
+/* Functional global search */
+.search-wrap{position:relative;width:215px}
+.search-wrap .search-box{width:100%}
+.global-search-results{position:absolute;right:0;top:43px;width:min(360px,calc(100vw - 30px));max-height:390px;overflow:auto;background:#141a29;border:1px solid #30384b;border-radius:11px;box-shadow:0 18px 45px #0009;z-index:45;padding:6px}
+.global-search-results button{width:100%;display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:10px;border:0;border-radius:7px;background:transparent;text-align:left}
+.global-search-results button:hover{background:#252d40}
+.global-search-results button b{font-size:11px;color:#f1f2f8}
+.global-search-results button small{font-size:9px;color:#9aa5ba;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.search-result-type{font-size:8px;letter-spacing:1px;text-transform:uppercase;color:#a995ff}
+.search-no-results{padding:17px 12px;font-size:10px;color:#9aa5ba}
+@media(max-width:760px){.search-wrap{display:none}}
