@@ -31,6 +31,16 @@ const starterGames = [
     externalUrl: "https://eaglercraft.q13x.com/1.8.8_2/js/"
   },
   {
+    name: "Classroom",
+    type: "Adventure",
+    players: "Single-player",
+    mode: "single",
+    color: "blue",
+    icon: "🏫",
+    description: "Jump into the Classroom Unity game.",
+    externalUrl: "/Skipper/classroom/index.html"
+  },
+  {
     name: "OpenGuessr",
     type: "Puzzle",
     players: "Single-player",
