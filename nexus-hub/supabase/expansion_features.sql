@@ -91,3 +91,30 @@ drop policy if exists "Users create their own reviews" on public.nexus_game_revi
 create policy "Users create their own reviews" on public.nexus_game_reviews for insert to authenticated with check(auth.uid()=user_id);
 drop policy if exists "Users update their own reviews" on public.nexus_game_reviews;
 create policy "Users update their own reviews" on public.nexus_game_reviews for update to authenticated using(auth.uid()=user_id) with check(auth.uid()=user_id);
+
+
+-- Votes are submitted through a controlled function so members cannot rewrite poll questions or other users' votes.
+drop policy if exists "Signed in users can vote in polls" on public.nexus_polls;
+create or replace function public.nexus_vote_poll(p_poll_id uuid, p_option text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  poll_row public.nexus_polls%rowtype;
+  voter text := auth.uid()::text;
+  updated_votes jsonb;
+begin
+  if voter is null then raise exception 'You must be signed in to vote.'; end if;
+  select * into poll_row from public.nexus_polls where id = p_poll_id for update;
+  if not found then raise exception 'Poll not found.'; end if;
+  if not (poll_row.options ? p_option) then raise exception 'That option is not available.'; end if;
+  if coalesce(poll_row.votes, '{}'::jsonb) ? voter then raise exception 'You already voted in this poll.'; end if;
+  updated_votes := coalesce(poll_row.votes, '{}'::jsonb) || jsonb_build_object(voter, p_option);
+  update public.nexus_polls set votes = updated_votes where id = p_poll_id;
+  return updated_votes;
+end;
+$$;
+revoke all on function public.nexus_vote_poll(uuid,text) from public;
+grant execute on function public.nexus_vote_poll(uuid,text) to authenticated;
