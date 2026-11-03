@@ -481,7 +481,7 @@ export default function App() {
       <div className="page-content">
         {notice && <div className="notice"><Sparkles size={16}/>{notice}<button onClick={() => setNotice("")}><X size={15}/></button></div>}
         {page === "home" && <HomePage username={username} online={online} rooms={rooms} setPage={setPage} setNotice={setNotice}/>}
-        {page === "browser" && <DuckDuckGoPage query={browserQuery} setQuery={setBrowserQuery}/>}
+        {page === "browser" && <YouTubeSearchPage query={browserQuery} setQuery={setBrowserQuery}/>}
         {page === "games" && <GamesPage socket={socket} username={username} session={session} rooms={rooms} myLobby={myLobby} lobbyCode={lobbyCode} setLobbyCode={setLobbyCode} lobbyError={lobbyError} createLobby={createLobby} joinLobby={joinLobby} leaveLobby={leaveLobby} startLobby={startLobby} recordGame={recordGame}/>}
         {page === "rewards" && <RewardsPage username={username} stats={playerStats} activity={activityFeed} leaderboard={playerLeaderboard} loading={rewardsLoading} onClaimDaily={claimDailyChallenge} onChooseTheme={chooseTheme}/>}
         {page === "chat" && <ChatPage username={username} online={online} messages={messages} channel={channel} setChannel={setChannel} messageText={messageText} setMessageText={setMessageText} sendMessage={sendChatMessage} chatFile={chatFile} setChatFile={setChatFile} replyTo={replyTo} setReplyTo={setReplyTo} reactToMessage={reactToMessage} editMessage={editMessage} deleteMessage={deleteMessage} reportMessage={reportMessage}/>}
@@ -577,24 +577,48 @@ function GamesPage({ rooms, myLobby, lobbyCode, setLobbyCode, lobbyError, create
    </div>;
 }
 
-function DuckDuckGoPage({query,setQuery}) {
-  function searchWeb(e) {
+function YouTubeSearchPage({query,setQuery}) {
+  const [results,setResults]=useState([]);
+  const [selected,setSelected]=useState(null);
+  const [loading,setLoading]=useState(false);
+  const [error,setError]=useState("");
+  async function searchYouTube(e) {
     e.preventDefault();
     const term=query.trim();
     if(!term)return;
-    window.open("https://duckduckgo.com/?q="+encodeURIComponent(term) ,"_blank","noopener,noreferrer");
+    setLoading(true);setError("");setSelected(null);setResults([]);
+    try {
+      const response=await fetch(`${API}/api/youtube/search?q=${encodeURIComponent(term)}`);
+      const data=await response.json();
+      if(!response.ok)throw new Error(data.error||"YouTube search failed.");
+      setResults(data.items||[]);
+      if(!(data.items||[]).length)setError("No videos found. Try another search.");
+    } catch(err) { setError(err.message||"Could not search YouTube."); }
+    finally { setLoading(false); }
   }
-  return <section className="social-panel" style={{maxWidth:900,margin:"0 auto",padding:28}}>
-    <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
-      <div style={{width:46,height:46,borderRadius:14,display:"grid",placeItems:"center",background:"#de6b24",color:"#fff"}}><Globe size={25}/></div>
-      <div><div className="eyebrow">NEXUS WEB</div><h1 style={{margin:0}}>DuckDuckGo</h1></div>
+  return <section className="youtube-page">
+    <div className="youtube-heading">
+      <div className="youtube-mark">▶</div>
+      <div><div className="eyebrow">NEXUS WATCH</div><h1>YouTube</h1><p className="muted">Search videos and watch them without leaving NEXUS.</p></div>
     </div>
-    <p className="muted" style={{margin:"12px 0 22px"}}>Search the web with DuckDuckGo. Results open in a new browser tab so you can browse without leaving NEXUS.</p>
-    <form onSubmit={searchWeb} style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-      <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search the web..." aria-label="Search DuckDuckGo" style={{flex:"1 1 260px",minWidth:0,padding:"14px 16px",borderRadius:10,border:"1px solid var(--border, #39415b)",background:"var(--panel, #111827)",color:"inherit",fontSize:16}}/>
-      <button className="primary-btn" type="submit" disabled={!query.trim()}><Search size={16}/> Search DuckDuckGo</button>
+    <form className="youtube-search" onSubmit={searchYouTube}>
+      <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search YouTube..." aria-label="Search YouTube"/>
+      <button className="primary-btn" type="submit" disabled={!query.trim()||loading}><Search size={16}/>{loading?"Searching...":"Search"}</button>
     </form>
-    <button className="secondary-btn" type="button" style={{marginTop:14}} onClick={()=>window.open("https://duckduckgo.com/","_blank","noopener,noreferrer")}>Open DuckDuckGo homepage <ArrowRight size={15}/></button>
+    {error&&<div className="youtube-message">{error}</div>}
+    {selected&&<div className="youtube-player-panel">
+      <div className="youtube-player-wrap"><iframe src={`https://www.youtube-nocookie.com/embed/${selected.videoId}?autoplay=1&rel=0`} title={selected.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen/></div>
+      <div className="youtube-playing-info"><div><h2>{selected.title}</h2><p>{selected.channel}</p></div><button className="secondary-btn" onClick={()=>setSelected(null)}>Close player <X size={15}/></button></div>
+    </div>}
+    {results.length>0&&<div className="youtube-results-heading"><h2>Search results</h2><span>{results.length} videos</span></div>}
+    <div className="youtube-results">
+      {results.map(video=><button className={"youtube-result "+(selected?.videoId===video.videoId?"selected":"")} key={video.videoId} onClick={()=>{setSelected(video);window.scrollTo({top:0,behavior:"smooth"});}}>
+        <span className="youtube-thumb"><img src={video.thumbnail} alt=""/><span>▶</span></span>
+        <span className="youtube-result-copy"><b>{video.title}</b><small>{video.channel}</small><span>{video.description}</span></span>
+      </button>)}
+    </div>
+    {!results.length&&!loading&&!error&&<div className="youtube-empty"><Search size={28}/><h2>Find something to watch</h2><p>Search for videos, creators, music, tutorials, and more.</p></div>}
+    <p className="youtube-footnote">Videos are provided by YouTube. Some videos may have playback restrictions set by their creators.</p>
   </section>;
 }
 
