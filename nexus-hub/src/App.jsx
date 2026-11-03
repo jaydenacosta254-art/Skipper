@@ -184,12 +184,16 @@ export default function App() {
     setRewardsLoading(true);
     Promise.all([
       supabase.from("nexus_player_stats").select("xp,level,games_played,daily_claim_date,selected_theme").eq("user_id", session.user.id).maybeSingle(),
-      supabase.from("nexus_game_activity").select("username,activity_type,detail,created_at").order("created_at", { ascending: false }).limit(12),
+      supabase.from("friend_requests").select("sender_id,receiver_id").eq("status", "accepted"),
       supabase.from("nexus_player_stats").select("username,xp,level,games_played").order("xp", { ascending: false }).limit(10)
-    ]).then(([statsResult, activityResult, leaderboardResult]) => {
+    ]).then(async ([statsResult, friendsResult, leaderboardResult]) => {
       if (cancelled) return;
       if (statsResult.data) setPlayerStats(statsResult.data);
       else setPlayerStats({ xp: 0, level: 1, games_played: 0, daily_claim_date: null, selected_theme: "violet" });
+      const friendIds = (friendsResult.data || []).map(row => row.sender_id === session.user.id ? row.receiver_id : row.sender_id);
+      const activityResult = friendIds.length
+        ? await supabase.from("nexus_game_activity").select("username,activity_type,detail,created_at").in("user_id", friendIds).order("created_at", { ascending: false }).limit(12)
+        : { data: [] };
       setActivityFeed(activityResult.data || []);
       setPlayerLeaderboard(leaderboardResult.data || []);
       setRewardsLoading(false);
@@ -602,7 +606,7 @@ function RewardsPage({ username, stats, activity, leaderboard, loading, onClaimD
     </div>
     <section className="reward-card theme-card"><div className="reward-card-heading"><span className="reward-icon"><Palette/></span><span className="eyebrow">PROFILE CUSTOMIZATION</span></div><h2>Choose your profile theme</h2><p className="muted">Unlock more colors as you level up.</p><div className="theme-options">{themes.map(t=>{const unlocked=xp>=t.unlock;return <button key={t.id} className={"theme-option theme-swatch-"+t.id+(stats?.selected_theme===t.id?" selected":"")} disabled={!unlocked} onClick={()=>onChooseTheme(t.id)}><span/><b>{t.name}</b><small>{unlocked?(stats?.selected_theme===t.id?"Selected":"Unlocked"):"Unlock at "+t.unlock+" XP"}</small></button>})}</div></section>
     <section className="reward-card global-leaderboard"><div className="reward-card-heading"><span className="reward-icon"><Trophy/></span><span className="eyebrow">GLOBAL LEADERBOARD</span></div><h2>Top NEXUS players</h2>{leaderboard?.length?leaderboard.map((player,i)=><div className="activity-row" key={player.username+i}><b className="rank-number">#{i+1}</b><div><b>{player.username}</b><small>Level {player.level} · {player.games_played} games</small></div><strong>{player.xp} XP</strong></div>):<div className="empty-small">No ranked players yet. Start earning XP to appear here.</div>}</section>
-    <section className="reward-card activity-card"><div className="reward-card-heading"><span className="reward-icon"><Activity/></span><span className="eyebrow">FRIENDS ACTIVITY</span></div><h2>Community activity</h2><p className="muted">Recent games and challenges shared by NEXUS members.</p>{loading?<p className="muted">Loading activity…</p>:activity?.length?activity.map((item,i)=><div className="activity-row" key={item.id||item.created_at+i}><span className="activity-avatar">{(item.username||"N").slice(0,1).toUpperCase()}</span><div><b>{item.username}</b><small>{item.detail}</small></div><time>{new Date(item.created_at).toLocaleDateString()}</time></div>):<div className="empty-small">No activity yet. Play a game to start the feed!</div>}</section>
+    <section className="reward-card activity-card"><div className="reward-card-heading"><span className="reward-icon"><Activity/></span><span className="eyebrow">FRIENDS ACTIVITY</span></div><h2>Community activity</h2><p className="muted">Recent games and challenges shared by your accepted NEXUS friends.</p>{loading?<p className="muted">Loading activity…</p>:activity?.length?activity.map((item,i)=><div className="activity-row" key={item.id||item.created_at+i}><span className="activity-avatar">{(item.username||"N").slice(0,1).toUpperCase()}</span><div><b>{item.username}</b><small>{item.detail}</small></div><time>{new Date(item.created_at).toLocaleDateString()}</time></div>):<div className="empty-small">No friend activity yet. Add friends and their game activity will appear here.</div>}</section>
   </div>;
 }
 
