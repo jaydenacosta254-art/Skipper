@@ -17,16 +17,19 @@ alter table public.profiles add column if not exists status text not null defaul
 
 alter table public.profiles enable row level security;
 
+drop policy if exists "Profiles are readable by signed-in users" on public.profiles;
 create policy "Profiles are readable by signed-in users"
 on public.profiles for select
 to authenticated
 using (true);
 
+drop policy if exists "Users can create their own profile" on public.profiles;
 create policy "Users can create their own profile"
 on public.profiles for insert
 to authenticated
 with check (auth.uid() = id and role = 'member');
 
+drop policy if exists "Users can update their own username" on public.profiles;
 create policy "Users can update their own username"
 on public.profiles for update
 to authenticated
