@@ -37,3 +37,28 @@ with check (auth.uid() = id and role = (select role from public.profiles p where
 -- Promote your own account manually from the Supabase SQL editor after signup:
 -- update public.profiles set role = 'admin' where username = 'YOUR_USERNAME';
 -- Do not expose the Supabase service-role key in frontend code.
+
+
+-- Public profile image uploads (max 5 MB; users can upload only to their own folder).
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('profile-avatars', 'profile-avatars', true, 5242880, array['image/jpeg','image/png','image/webp','image/gif'])
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "Profile images are publicly viewable" on storage.objects;
+create policy "Profile images are publicly viewable"
+on storage.objects for select
+using (bucket_id = 'profile-avatars');
+
+drop policy if exists "Users upload their own profile images" on storage.objects;
+create policy "Users upload their own profile images"
+on storage.objects for insert to authenticated
+with check (bucket_id = 'profile-avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "Users update their own profile images" on storage.objects;
+create policy "Users update their own profile images"
+on storage.objects for update to authenticated
+using (bucket_id = 'profile-avatars' and (storage.foldername(name))[1] = auth.uid()::text)
+with check (bucket_id = 'profile-avatars' and (storage.foldername(name))[1] = auth.uid()::text);
