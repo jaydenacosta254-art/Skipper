@@ -21,6 +21,7 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileDraft, setProfileDraft] = useState({ username: "", avatar_url: "", bio: "", status: "" });
   const [profileBusy, setProfileBusy] = useState(false);
+  const [profileFile, setProfileFile] = useState(null);
   const [profileError, setProfileError] = useState("");
   const [authMode, setAuthMode] = useState("login");
   const [email, setEmail] = useState("");
@@ -142,11 +143,13 @@ export default function App() {
 
   function openProfileEditor() {
     setProfileDraft({ username, avatar_url: profile?.avatar_url || guestProfile?.avatar_url || "", bio: profile?.bio || guestProfile?.bio || "", status: profile?.status || guestProfile?.status || "Available" });
-    setProfileError(""); setProfileOpen(true);
+    setProfileError(""); setProfileFile(null); setProfileOpen(true);
   }
   async function saveProfile(e) {
     e.preventDefault(); setProfileError("");
     const clean = { username: profileDraft.username.trim().slice(0,24), avatar_url: profileDraft.avatar_url.trim(), bio: profileDraft.bio.trim().slice(0,160), status: profileDraft.status.trim().slice(0,40) || "Available" };
+    if (profileFile && (!profileFile.type.startsWith("image/") || profileFile.size > 5 * 1024 * 1024)) return setProfileError("Choose an image smaller than 5 MB.");
+    if (profileFile && (!session?.user || !supabase)) return setProfileError("File uploads require a signed-in account. You can still use an image URL.");
     if (clean.username.length < 2) return setProfileError("Username must be at least 2 characters.");
     if (session?.user && supabase) {
       setProfileBusy(true);
@@ -208,7 +211,7 @@ export default function App() {
         {page === "admin" && (isAdmin ? <AdminPage stats={adminStats} online={online}/> : <div className="empty-state"><Shield/><h2>Admin access required</h2><p>Your account does not have administrator permissions.</p></div>)}
       </div>
     </main>
-    {profileOpen && <ProfileEditor draft={profileDraft} setDraft={setProfileDraft} onSave={saveProfile} onClose={() => setProfileOpen(false)} busy={profileBusy} error={profileError} username={username} avatarUrl={profile?.avatar_url || guestProfile?.avatar_url}/>}
+    {profileOpen && <ProfileEditor draft={profileDraft} setDraft={setProfileDraft} onSave={saveProfile} onClose={() => setProfileOpen(false)} busy={profileBusy} error={profileError} file={profileFile} setFile={setProfileFile} username={username} avatarUrl={profile?.avatar_url || guestProfile?.avatar_url}/>}
   </div>;
 }
 
@@ -217,7 +220,7 @@ function ProfileAvatar({ username, url, small = false }) {
   return url ? <img className={`avatar profile-avatar-image ${small ? "small" : ""}`} src={url} alt={`${username}'s profile`} onError={e => { e.currentTarget.style.display = "none"; }}/> : <div className={`avatar ${small ? "small" : ""}`}>{initials}</div>;
 }
 
-function ProfileEditor({ draft, setDraft, onSave, onClose, busy, error, username, avatarUrl }) {
+function ProfileEditor({ draft, setDraft, onSave, onClose, busy, error, file, setFile, username, avatarUrl }) {
   const change = (key, value) => setDraft(old => ({ ...old, [key]: value }));
   return <div className="profile-modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
     <section className="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-editor-title">
@@ -225,7 +228,7 @@ function ProfileEditor({ draft, setDraft, onSave, onClose, busy, error, username
       <div className="profile-preview"><ProfileAvatar username={draft.username || username} url={draft.avatar_url || avatarUrl}/><div><b>{draft.username || username}</b><small>{draft.status || "Available"}</small></div></div>
       <form className="profile-form" onSubmit={onSave}>
         <label>Username<input value={draft.username} onChange={e => change("username", e.target.value)} maxLength={24} minLength={2} required/></label>
-        <label>Profile picture URL<input type="url" value={draft.avatar_url} onChange={e => change("avatar_url", e.target.value)} placeholder="https://example.com/photo.jpg"/><small>Paste a direct link to an image. Leave blank to use your initials.</small></label>
+        <label>Upload profile picture<input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)}/><small>{file ? `Selected: ${file.name}` : "Choose an image from your device (max 5 MB)."} Uploads are saved to your account.</small></label>\n        <label>Or use a profile picture URL<input type="url" value={draft.avatar_url} onChange={e => { change("avatar_url", e.target.value); if (file) setFile(null); }} placeholder="https://example.com/photo.jpg"/><small>Paste a direct link to an image instead.</small></label>
         <label>Status<input value={draft.status} onChange={e => change("status", e.target.value)} maxLength={40} placeholder="Available"/></label>
         <label>About me<textarea value={draft.bio} onChange={e => change("bio", e.target.value)} maxLength={160} rows={3} placeholder="Tell the community a little about yourself..."/></label>
         {error && <div className="form-error">{error}</div>}
