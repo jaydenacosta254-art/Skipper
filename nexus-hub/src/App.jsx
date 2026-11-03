@@ -177,10 +177,29 @@ export default function App() {
     if (clean.username.length < 2) return setProfileError("Username must be at least 2 characters.");
     if (session?.user && supabase) {
       setProfileBusy(true);
-      const { data, error } = await supabase.from("profiles").update(clean).eq("id", session.user.id).select("username, role, avatar_url, bio, status").single();
+      try {
+        if (profileFile) {
+          const safeName = profileFile.name.toLowerCase().replace(/[^a-z0-9.-]/g, "-");
+          const filePath = `${session.user.id}/${Date.now()}-${safeName || "avatar"}`;
+          const { error: uploadError } = await supabase.storage.from("profile-avatars").upload(filePath, profileFile, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: profileFile.type
+          });
+          if (uploadError) throw uploadError;
+          const { data: publicData } = supabase.storage.from("profile-avatars").getPublicUrl(filePath);
+          clean.avatar_url = publicData.publicUrl;
+        }
+        const { data, error } = await supabase.from("profiles").update(clean).eq("id", session.user.id).select("username, role, avatar_url, bio, status").single();
+        if (error) throw error;
+        setProfile(data);
+        setProfileDraft({ ...clean });
+        setProfileFile(null);
+      } catch (err) {
+        setProfileBusy(false);
+        return setProfileError(err.message || "The profile picture could not be uploaded.");
+      }
       setProfileBusy(false);
-      if (error) return setProfileError(error.message);
-      setProfile(data);
     } else {
       const next = { ...clean };
       setGuestProfile(next); localStorage.setItem("nexus_guest_profile", JSON.stringify(next));
