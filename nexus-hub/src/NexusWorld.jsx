@@ -44,7 +44,7 @@ function weekIndex(length) {
 
 export default function NexusWorld({
   session, username, profile, games = [], online = [], activity = [],
-  isAdmin = false, onOpenGames = () => {}, onProfileUpdate = () => {}, setNotice = () => {}
+  isAdmin = false, onOpenGames = () => {}, onPlayGame = null, onProfileUpdate = () => {}, setNotice = () => {}
 }) {
   const userId = session?.user?.id;
   const playable = useMemo(() => games.filter(game => game.externalUrl), [games]);
@@ -136,15 +136,12 @@ export default function NexusWorld({
 
   function openGame(game) {
     if (!game) return;
-    if (game.externalUrl) {
-      const target = game.externalUrl.startsWith("/")
-        ? new URL(game.externalUrl, window.location.href).href
-        : game.externalUrl;
-      window.open(target, "_blank", "noopener,noreferrer");
-    } else {
-      onOpenGames();
-      setNotice("Open the Games hub to launch " + game.name + ".");
+    if (onPlayGame) {
+      onPlayGame(game);
+      return;
     }
+    onOpenGames();
+    setNotice("Open the Games hub to launch " + game.name + ".");
   }
   function chooseRandom() {
     if (!playable.length) return onOpenGames();
