@@ -44,7 +44,7 @@ function weekIndex(length) {
 
 export default function NexusWorld({
   session, username, profile, games = [], online = [], activity = [],
-  isAdmin = false, onOpenGames = () => {}, setNotice = () => {}
+  isAdmin = false, onOpenGames = () => {}, onProfileUpdate = () => {}, setNotice = () => {}
 }) {
   const userId = session?.user?.id;
   const playable = useMemo(() => games.filter(game => game.externalUrl), [games]);
@@ -238,6 +238,7 @@ export default function NexusWorld({
     if (signedIn) {
       const { error: saveError } = await supabase.from("profiles").update({ status: next }).eq("id", userId);
       if (saveError) setError(saveError.message);
+      else onProfileUpdate(next);
     }
   }
   async function publishNews(e) {
