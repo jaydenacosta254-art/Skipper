@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { supabase } from "./supabase";
 
-const API = import.meta.env.VITE_SERVER_URL || "";
+const API = import.meta.env.VITE_SERVER_URL || "https://nexus-api-7rxk.onrender.com";
 const GOOGLE_CSE_ID = import.meta.env.VITE_GOOGLE_CSE_ID || "62fa2ca9e562c4a8f";
 const starterGames = [
   {
@@ -592,7 +592,13 @@ function GoogleSearchPage() {
     setLoading(true); setError(""); setSearched(term); setResults([]);
     try {
       const response = await fetch(`${API}/api/search?q=${encodeURIComponent(term)}`);
-      const data = await response.json();
+      const responseText = await response.text();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        throw new Error("NEXUS received a webpage instead of search data. The Render search API may still be deploying; wait a minute and refresh.");
+      }
       if (!response.ok) throw new Error(data.error || "Search failed.");
       setResults(data.results || []);
       if (!data.results?.length) setError("No results came back. Try another search.");
