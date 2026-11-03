@@ -13,3 +13,29 @@
 /* Profile editor */
 .profile-trigger,.top-profile-button{display:flex;align-items:center;gap:9px;border:0;background:transparent;color:inherit;text-align:left;padding:0;border-radius:9px;min-width:0}.profile-trigger{flex:1}.profile-trigger:hover,.top-profile-button:hover{background:#1c2333}.profile-trigger .user-meta{min-width:0}.profile-trigger .user-meta b{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.top-profile-button{padding:3px}.profile-avatar-image{object-fit:cover;display:block;border:1px solid #4a4569}.profile-modal-backdrop{position:fixed;inset:0;background:#050710c9;backdrop-filter:blur(8px);z-index:60;display:grid;place-items:center;padding:18px}.profile-modal{width:min(100%,480px);max-height:min(90vh,760px);overflow:auto;background:#121827;border:1px solid #343b52;border-radius:17px;padding:23px;box-shadow:0 25px 90px #000a}.profile-modal-head{display:flex;align-items:flex-start;justify-content:space-between}.profile-modal-head h2{font:600 23px 'Space Grotesk';margin:0 0 15px}.profile-preview{display:flex;align-items:center;gap:12px;padding:13px;background:#1a2131;border:1px solid #2c3549;border-radius:11px;margin:5px 0 18px}.profile-preview b,.profile-preview small{display:block}.profile-preview b{font-size:12px}.profile-preview small{font-size:9px;color:#9ba6bb;margin-top:4px}.profile-form label{display:block;font-size:10px;color:#c1c8d6;margin:12px 0}.profile-form input,.profile-form textarea{display:block;width:100%;margin-top:7px;padding:11px 12px;border-radius:8px;border:1px solid #30394d;background:#0b111d;color:#f5f5fb;font:11px 'DM Sans';resize:vertical}.profile-form label small{display:block;color:#808ba1;font-size:9px;margin-top:6px}.profile-form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
 @media(max-width:760px){.profile-modal{padding:18px}.profile-trigger .user-meta b{max-width:105px}}
+
+
+/* Nexus social and chat upgrades */
+.message-tools{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.message-tools button,.reply-banner button,.dm-head button{border:1px solid var(--border,#303044);background:var(--panel,#171725);color:inherit;border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer}
+.message-tools button:hover,.social-row button:hover{border-color:var(--accent,#8b75ff)}
+.attach-button{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:var(--panel,#171725);cursor:pointer;font-size:22px;flex:none}
+.attach-button input{display:none}
+.chat-attachment{display:inline-block;margin:5px 0;padding:8px 11px;border:1px solid var(--border,#303044);border-radius:9px;color:inherit;text-decoration:none}
+.reply-context{display:block;color:var(--muted,#999);font-size:12px;margin:4px 0}
+.reply-banner{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--panel,#171725);border-radius:8px;margin:8px 0}
+.social-panel,.dm-panel{margin:18px 0;padding:18px;border:1px solid var(--border,#303044);border-radius:14px;background:var(--panel,#171725)}
+.social-panel h2,.dm-head h2{font-size:16px;margin:0 0 12px}
+.social-row,.report-row{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border,#303044)}
+.social-row button,.report-row button{border:1px solid var(--border,#303044);border-radius:8px;padding:7px 10px;background:transparent;color:inherit;cursor:pointer}
+.report-row>div{flex:1;min-width:0}
+.report-row p{margin:5px 0;overflow-wrap:anywhere}
+.report-row small{color:var(--muted,#999)}
+.dm-head{display:flex;justify-content:space-between;align-items:center}
+.dm-history{max-height:260px;overflow:auto;padding:10px 0}
+.dm-history p{padding:7px 10px;border-radius:8px;background:var(--surface,#202033);overflow-wrap:anywhere}
+.notification-items{max-height:320px;overflow:auto}
+.notification-item{display:flex;flex-direction:column;gap:4px;width:100%;padding:11px;border:0;border-bottom:1px solid var(--border,#303044);background:transparent;color:inherit;text-align:left;cursor:pointer}
+.notification-item.read{opacity:.6}
+.notification-item small{color:var(--muted,#999);font-size:11px}
+@media(max-width:650px){.report-row,.social-row{align-items:flex-start;flex-wrap:wrap}.report-row>div{flex-basis:100%}.message-tools{gap:4px}.message-tools button{font-size:11px;padding:5px 7px}}
