@@ -148,3 +148,37 @@ create table if not exists public.blocked_users (
 alter table public.blocked_users enable row level security;
 drop policy if exists "Users manage their own blocked list" on public.blocked_users;
 create policy "Users manage their own blocked list" on public.blocked_users for all to authenticated using(auth.uid()=blocker_id) with check(auth.uid()=blocker_id);
+
+
+-- Game hub submissions and score leaderboard
+create table if not exists public.game_submissions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null check (char_length(name) between 2 and 60),
+  url text not null,
+  description text not null default '',
+  category text not null default 'Other',
+  status text not null default 'pending' check (status in ('pending','approved','rejected')),
+  created_at timestamptz not null default now()
+);
+alter table public.game_submissions enable row level security;
+drop policy if exists "Users can submit games" on public.game_submissions;
+create policy "Users can submit games" on public.game_submissions for insert to authenticated with check (auth.uid()=user_id);
+drop policy if exists "Users can view their own game submissions" on public.game_submissions;
+create policy "Users can view their own game submissions" on public.game_submissions for select to authenticated using (auth.uid()=user_id);
+drop policy if exists "Admins can review game submissions" on public.game_submissions;
+create policy "Admins can review game submissions" on public.game_submissions for all to authenticated using (exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='admin')) with check (exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='admin'));
+
+create table if not exists public.game_scores (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  username text not null,
+  game_name text not null,
+  score integer not null check (score >= 0),
+  created_at timestamptz not null default now()
+);
+alter table public.game_scores enable row level security;
+drop policy if exists "Anyone can read game scores" on public.game_scores;
+create policy "Anyone can read game scores" on public.game_scores for select to anon, authenticated using (true);
+drop policy if exists "Users can submit their own game scores" on public.game_scores;
+create policy "Users can submit their own game scores" on public.game_scores for insert to authenticated with check (auth.uid()=user_id);
