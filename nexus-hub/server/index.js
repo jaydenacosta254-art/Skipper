@@ -19,6 +19,45 @@ const rooms = new Map();
 const users = new Map();
 const chatMessages = new Map();
 
+
+app.get("/api/search", async (req, res) => {
+  const query = String(req.query.q || "").trim().slice(0, 200);
+  if (!query) return res.status(400).json({ error: "Enter a search term." });
+  try {
+    const response = await fetch("https://lite.duckduckgo.com/lite/?q=" + encodeURIComponent(query), {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; NexusSearch/1.0)" },
+      signal: AbortSignal.timeout(12000)
+    });
+    if (!response.ok) throw new Error("DuckDuckGo returned " + response.status);
+    const html = await response.text();
+    const decode = value => value
+      .replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'")
+      .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#(\\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+    const results = [];
+    const linkPattern = /<a\\b([^>]*class=["'][^"']*result-link[^"']*["'][^>]*)>([\\s\\S]*?)<\\/a>/gi;
+    let match;
+    while ((match = linkPattern.exec(html)) && results.length < 12) {
+      const href = match[1].match(/href=["']([^"']+)["']/i)?.[1];
+      const title = decode(match[2].replace(/<[^>]*>/g, "").trim());
+      if (!href || !title) continue;
+      let url = decode(href);
+      try {
+        const parsed = new URL(url, "https://lite.duckduckgo.com");
+        const redirected = parsed.searchParams.get("uddg");
+        if (redirected) url = redirected;
+      } catch {}
+      if (!/^https?:\\/\\//i.test(url)) continue;
+      const after = html.slice(linkPattern.lastIndex, linkPattern.lastIndex + 1400);
+      const snippetMatch = after.match(/class=["'][^"']*result-snippet[^"']*["'][^>]*>([\\s\\S]*?)<\\/[^>]+>/i);
+      const snippet = snippetMatch ? decode(snippetMatch[1].replace(/<[^>]*>/g, "").replace(/\\s+/g, " ").trim()) : "";
+      results.push({ title, url, snippet });
+    }
+    res.json({ query, results });
+  } catch (error) {
+    res.status(502).json({ error: "DuckDuckGo search is temporarily unavailable. Please try again." });
+  }
+});
+
 app.get("/api/health", (_req, res) => res.json({ ok: true, service: "Nexus API" }));
 app.get("/api/stats", (_req, res) => res.json({
   online: users.size,
