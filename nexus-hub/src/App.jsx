@@ -22,6 +22,7 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [usernameInput, setUsernameInput] = useState("");
   const [authError, setAuthError] = useState("");
+  const [authSuccess, setAuthSuccess] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   const [guest, setGuest] = useState(() => localStorage.getItem("nexus_guest") || "");
   const [page, setPage] = useState("home");
@@ -51,8 +52,30 @@ export default function App() {
 
   useEffect(() => {
     if (!session?.user || !supabase) { setProfile(null); return; }
-    supabase.from("profiles").select("username, role").eq("id", session.user.id).single()
-      .then(({ data }) => setProfile(data || { username: session.user.email?.split("@")[0], role: "member" }));
+    let cancelled = false;
+    async function loadProfile() {
+      const user = session.user;
+      const { data } = await supabase.from("profiles").select("username, role").eq("id", user.id).maybeSingle();
+      if (data) {
+        if (!cancelled) setProfile(data);
+        return;
+      }
+      const metadataName = String(user.user_metadata?.username || user.email?.split("@")[0] || "member").trim().slice(0, 24);
+      const cleanName = metadataName.length >= 2 ? metadataName : `member_${user.id.slice(0, 8)}`;
+      let { data: created, error } = await supabase.from("profiles").upsert(
+        { id: user.id, username: cleanName, role: "member" }, { onConflict: "id" }
+      ).select("username, role").single();
+      if (error) {
+        const fallbackName = `${cleanName.slice(0, 15)}_${user.id.slice(0, 6)}`;
+        const retry = await supabase.from("profiles").upsert(
+          { id: user.id, username: fallbackName, role: "member" }, { onConflict: "id" }
+        ).select("username, role").single();
+        created = retry.data;
+      }
+      if (!cancelled) setProfile(created || { username: cleanName, role: "member" });
+    }
+    loadProfile();
+    return () => { cancelled = true; };
   }, [session]);
 
   useEffect(() => {
@@ -84,17 +107,25 @@ export default function App() {
   ];
 
   async function submitAuth(e) {
-    e.preventDefault(); setAuthError(""); setAuthBusy(true);
+    e.preventDefault(); setAuthError(""); setAuthSuccess(""); setAuthBusy(true);
     try {
       if (!supabase) throw new Error("Connect Supabase first. See the README setup guide, or continue as a guest.");
       if (authMode === "signup") {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const cleanName = usernameInput.trim() || email.split("@")[0];
+        if (cleanName.length < 2) throw new Error("Username must be at least 2 characters.");
+        const emailRedirectTo = window.location.hostname.endsWith("github.io")
+          ? `${window.location.origin}/Skipper/`
+          : `${window.location.origin}/`;
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo,
+            data: { username: cleanName }
+          }
+        });
         if (error) throw error;
-        if (data.user) {
-          const cleanName = usernameInput.trim() || email.split("@")[0];
-          await supabase.from("profiles").upsert({ id: data.user.id, username: cleanName, role: "member" });
-        }
-        setAuthError("Account created. If email confirmation is enabled, check your inbox.");
+        setAuthSuccess("Account created! Check your inbox for the confirmation link. After you click it, Nexus will sign you in automatically.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -126,7 +157,7 @@ export default function App() {
 
   if (!session && !guest) return <AuthScreen {...{
     authMode, setAuthMode, email, setEmail, password, setPassword,
-    usernameInput, setUsernameInput, authError, authBusy, submitAuth, enterGuest
+    usernameInput, setUsernameInput, authError, authSuccess, authBusy, submitAuth, enterGuest
   }} />;
 
   return <div className="app-shell">
@@ -159,6 +190,7 @@ function AuthScreen(p) {
     <label>Email address<input type="email" value={p.email} onChange={e => p.setEmail(e.target.value)} placeholder="you@example.com" required/></label>
     <label>Password<input type="password" value={p.password} onChange={e => p.setPassword(e.target.value)} placeholder="At least 6 characters" minLength={6} required/></label>
     {p.authError && <div className="form-error">{p.authError}</div>}
+    {p.authSuccess && <div className="form-success" role="status">{p.authSuccess}</div>}
     <button className="primary-btn full" disabled={p.authBusy}>{p.authBusy ? "Please wait..." : p.authMode === "login" ? "Sign in" : "Create account"} <ArrowRight size={17}/></button>
   </form><div className="auth-switch">{p.authMode === "login" ? "New to Nexus?" : "Already have an account?"} <button onClick={() => p.setAuthMode(p.authMode === "login" ? "signup" : "login")}>{p.authMode === "login" ? "Create an account" : "Sign in"}</button></div><div className="auth-divider"><span/> OR <span/></div><form onSubmit={p.enterGuest} className="guest-form"><input value={p.usernameInput} onChange={e => p.setUsernameInput(e.target.value)} placeholder="Choose a guest username" maxLength={24}/><button className="secondary-btn">Continue as guest</button></form><p className="auth-foot">By continuing, you agree to be respectful and follow community rules.</p></div><div className="auth-caption">A PLACE TO PLAY, CONNECT & CREATE <span>✦</span></div></div>;
 }
