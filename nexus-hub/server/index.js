@@ -48,7 +48,7 @@ io.on("connection", (socket) => {
   socket.on("presence:join", ({ username }) => {
     const safeName = String(username || "Guest").slice(0, 24);
     users.set(socket.id, safeName);
-    socket.emit("lobby:list", [...rooms.values()]);
+    socket.emit("lobby:list", [...rooms.values()].filter(room => !room.private));
     io.emit("presence:update", [...users.values()]);
   });
 
@@ -120,7 +120,7 @@ io.on("connection", (socket) => {
     if (!lobby.players.includes(name)) lobby.players.push(name);
     socket.join(`lobby:${key}`);
     io.to(`lobby:${key}`).emit("lobby:update", lobby);
-    io.emit("lobby:list", [...rooms.values()]);
+    io.emit("lobby:list", [...rooms.values()].filter(room => !room.private));
   });
 
 
@@ -147,7 +147,7 @@ io.on("connection", (socket) => {
       lobby.players = lobby.players.filter(p => p !== username);
       if (!lobby.players.length || lobby.host === username) { rooms.delete(key); gameSessions.delete(key); }
       else io.to(`lobby:${key}`).emit("lobby:update", lobby);
-      io.emit("lobby:list", [...rooms.values()]);
+      io.emit("lobby:list", [...rooms.values()].filter(room => !room.private));
     }
   });
 
@@ -176,7 +176,7 @@ io.on("connection", (socket) => {
       } else {
         io.to(roomName).emit("lobby:update", lobby);
       }
-      io.emit("lobby:list", [...rooms.values()]);
+      io.emit("lobby:list", [...rooms.values()].filter(room => !room.private));
     }
   });
 
