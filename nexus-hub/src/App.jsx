@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { supabase } from "./supabase";
 
-const API = import.meta.env.VITE_SERVER_URL || "https://nexus-api-7rxk.onrender.com";
+const API = "https://nexus-api-7rxk.onrender.com";
 const GOOGLE_CSE_ID = import.meta.env.VITE_GOOGLE_CSE_ID || "62fa2ca9e562c4a8f";
 const starterGames = [
   {
