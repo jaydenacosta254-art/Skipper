@@ -9,6 +9,7 @@ import {
 import { supabase } from "./supabase";
 
 const API = import.meta.env.VITE_SERVER_URL || "";
+const GOOGLE_CSE_ID = import.meta.env.VITE_GOOGLE_CSE_ID || "";
 const starterGames = [
   {
     name: "Retro Bowl",
@@ -481,7 +482,7 @@ export default function App() {
       <div className="page-content">
         {notice && <div className="notice"><Sparkles size={16}/>{notice}<button onClick={() => setNotice("")}><X size={15}/></button></div>}
         {page === "home" && <HomePage username={username} online={online} rooms={rooms} setPage={setPage} setNotice={setNotice}/>}
-        {page === "browser" && <DuckDuckGoPage query={browserQuery} setQuery={setBrowserQuery}/>}
+        {page === "browser" && <GoogleSearchPage/>}
         {page === "games" && <GamesPage socket={socket} username={username} session={session} rooms={rooms} myLobby={myLobby} lobbyCode={lobbyCode} setLobbyCode={setLobbyCode} lobbyError={lobbyError} createLobby={createLobby} joinLobby={joinLobby} leaveLobby={leaveLobby} startLobby={startLobby} recordGame={recordGame}/>}
         {page === "rewards" && <RewardsPage username={username} stats={playerStats} activity={activityFeed} leaderboard={playerLeaderboard} loading={rewardsLoading} onClaimDaily={claimDailyChallenge} onChooseTheme={chooseTheme}/>}
         {page === "chat" && <ChatPage username={username} online={online} messages={messages} channel={channel} setChannel={setChannel} messageText={messageText} setMessageText={setMessageText} sendMessage={sendChatMessage} chatFile={chatFile} setChatFile={setChatFile} replyTo={replyTo} setReplyTo={setReplyTo} reactToMessage={reactToMessage} editMessage={editMessage} deleteMessage={deleteMessage} reportMessage={reportMessage}/>}
@@ -577,24 +578,57 @@ function GamesPage({ rooms, myLobby, lobbyCode, setLobbyCode, lobbyError, create
    </div>;
 }
 
-function DuckDuckGoPage({query,setQuery}) {
-  function searchWeb(e) {
-    e.preventDefault();
-    const term=query.trim();
-    if(!term)return;
-    window.open("https://duckduckgo.com/?q="+encodeURIComponent(term) ,"_blank","noopener,noreferrer");
-  }
-  return <section className="social-panel" style={{maxWidth:900,margin:"0 auto",padding:28}}>
+function GoogleSearchPage() {
+  const [scriptReady, setScriptReady] = useState(false);
+  const [scriptError, setScriptError] = useState(false);
+  const mountRef = React.useRef(null);
+
+  useEffect(() => {
+    if (!GOOGLE_CSE_ID || !mountRef.current) return;
+    let cancelled = false;
+    window.__gcse = window.__gcse || {};
+    const existing = document.querySelector('script[data-nexus-google-cse="true"]');
+    const renderSearch = () => {
+      if (cancelled || !mountRef.current) return;
+      if (window.google?.search?.cse?.element?.go) {
+        window.google.search.cse.element.go(mountRef.current);
+        setScriptReady(true);
+      }
+    };
+    if (window.google?.search?.cse?.element?.go) {
+      renderSearch();
+    } else if (existing) {
+      existing.addEventListener("load", renderSearch, { once: true });
+      existing.addEventListener("error", () => setScriptError(true), { once: true });
+    } else {
+      const script = document.createElement("script");
+      script.async = true;
+      script.src = "https://cse.google.com/cse.js?cx=" + encodeURIComponent(GOOGLE_CSE_ID);
+      script.dataset.nexusGoogleCse = "true";
+      script.onload = renderSearch;
+      script.onerror = () => setScriptError(true);
+      document.head.appendChild(script);
+    }
+    return () => { cancelled = true; };
+  }, []);
+
+  return <section className="social-panel nexus-web-search" style={{maxWidth:1100,margin:"0 auto",padding:24}}>
     <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
-      <div style={{width:46,height:46,borderRadius:14,display:"grid",placeItems:"center",background:"#de6b24",color:"#fff"}}><Globe size={25}/></div>
-      <div><div className="eyebrow">NEXUS WEB</div><h1 style={{margin:0}}>DuckDuckGo</h1></div>
+      <div style={{width:46,height:46,borderRadius:14,display:"grid",placeItems:"center",background:"#4285f4",color:"#fff"}}><Globe size={25}/></div>
+      <div><div className="eyebrow">NEXUS WEB</div><h1 style={{margin:0}}>Web search</h1></div>
     </div>
-    <p className="muted" style={{margin:"12px 0 22px"}}>Search the web with DuckDuckGo. Results open in a new browser tab so you can browse without leaving NEXUS.</p>
-    <form onSubmit={searchWeb} style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-      <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search the web..." aria-label="Search DuckDuckGo" style={{flex:"1 1 260px",minWidth:0,padding:"14px 16px",borderRadius:10,border:"1px solid var(--border, #39415b)",background:"var(--panel, #111827)",color:"inherit",fontSize:16}}/>
-      <button className="primary-btn" type="submit" disabled={!query.trim()}><Search size={16}/> Search DuckDuckGo</button>
-    </form>
-    <button className="secondary-btn" type="button" style={{marginTop:14}} onClick={()=>window.open("https://duckduckgo.com/","_blank","noopener,noreferrer")}>Open DuckDuckGo homepage <ArrowRight size={15}/></button>
+    <p className="muted" style={{margin:"12px 0 20px"}}>Search the web and view results right here inside NEXUS.</p>
+    {!GOOGLE_CSE_ID ? <div className="empty-small" style={{padding:20}}>
+      <h3>One quick setup step</h3>
+      <p>Create a free Google Programmable Search Engine, set it to search the entire web, then add its Search engine ID as the GitHub repository variable <b>VITE_GOOGLE_CSE_ID</b>.</p>
+      <a href="https://programmablesearchengine.google.com/controlpanel/all" target="_blank" rel="noreferrer">Open Google Programmable Search Engine</a>
+      <p className="muted">After you have the Search engine ID, send it here. It is a public configuration ID, not a password or secret.</p>
+    </div> : <div ref={mountRef} className="nexus-google-search">
+      <div className="gcse-search"></div>
+      {!scriptReady && !scriptError && <p className="muted">Loading search…</p>}
+      {scriptError && <p className="form-error">Google search could not load. Refresh the page and try again.</p>}
+    </div>}
+    <p className="muted" style={{fontSize:12,marginTop:16}}>Search is powered by Google Programmable Search. Results are displayed within NEXUS.</p>
   </section>;
 }
 
