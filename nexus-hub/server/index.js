@@ -32,9 +32,9 @@ app.get("/api/search", async (req, res) => {
     const html = await response.text();
     const decode = value => value
       .replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'")
-      .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#(\\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+      .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
     const results = [];
-    const linkPattern = /<a\\b([^>]*class=["'][^"']*result-link[^"']*["'][^>]*)>([\\s\\S]*?)<\\/a>/gi;
+    const linkPattern = /<a\b([^>]*class=["'][^"']*result-link[^"']*["'][^>]*)>([\s\S]*?)<\/a>/gi;
     let match;
     while ((match = linkPattern.exec(html)) && results.length < 12) {
       const href = match[1].match(/href=["']([^"']+)["']/i)?.[1];
@@ -46,10 +46,10 @@ app.get("/api/search", async (req, res) => {
         const redirected = parsed.searchParams.get("uddg");
         if (redirected) url = redirected;
       } catch {}
-      if (!/^https?:\\/\\//i.test(url)) continue;
+      if (!/^https?:\/\//i.test(url)) continue;
       const after = html.slice(linkPattern.lastIndex, linkPattern.lastIndex + 1400);
-      const snippetMatch = after.match(/class=["'][^"']*result-snippet[^"']*["'][^>]*>([\\s\\S]*?)<\\/[^>]+>/i);
-      const snippet = snippetMatch ? decode(snippetMatch[1].replace(/<[^>]*>/g, "").replace(/\\s+/g, " ").trim()) : "";
+      const snippetMatch = after.match(/class=["'][^"']*result-snippet[^"']*["'][^>]*>([\s\S]*?)<\/[^>]+>/i);
+      const snippet = snippetMatch ? decode(snippetMatch[1].replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim()) : "";
       results.push({ title, url, snippet });
     }
     res.json({ query, results });
@@ -57,7 +57,6 @@ app.get("/api/search", async (req, res) => {
     res.status(502).json({ error: "DuckDuckGo search is temporarily unavailable. Please try again." });
   }
 });
-
 app.get("/api/health", (_req, res) => res.json({ ok: true, service: "Nexus API" }));
 app.get("/api/stats", (_req, res) => res.json({
   online: users.size,
