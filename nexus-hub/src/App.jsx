@@ -9,9 +9,56 @@ import { supabase } from "./supabase";
 
 const API = import.meta.env.VITE_SERVER_URL || "";
 const starterGames = [
-  { name: "Party Arena", type: "Party game", players: "2–8 players", color: "violet", icon: "🎉", description: "Quick rounds, ridiculous surprises, and bragging rights." },
-  { name: "Neon Racers", type: "Racing", players: "2–6 players", color: "blue", icon: "🏎️", description: "Race your friends through glowing obstacle courses." },
-  { name: "Trivia Clash", type: "Trivia", players: "2–12 players", color: "orange", icon: "🧠", description: "Put your random knowledge to the test." }
+  {
+    "name": "Party Arena",
+    "type": "Party",
+    "players": "2–8 players",
+    "color": "violet",
+    "icon": "🎉",
+    "description": "Quick rounds, ridiculous surprises, and bragging rights.",
+    "featured": true
+  },
+  {
+    "name": "Neon Racers",
+    "type": "Racing",
+    "players": "2–6 players",
+    "color": "blue",
+    "icon": "🏎️",
+    "description": "Race your friends through glowing obstacle courses.",
+    "featured": true
+  },
+  {
+    "name": "Trivia Clash",
+    "type": "Trivia",
+    "players": "2–12 players",
+    "color": "orange",
+    "icon": "🧠",
+    "description": "Put your random knowledge to the test."
+  },
+  {
+    "name": "Puzzle Pop",
+    "type": "Puzzle",
+    "players": "1–4 players",
+    "color": "green",
+    "icon": "🧩",
+    "description": "Solve clever puzzles together."
+  },
+  {
+    "name": "Pixel Quest",
+    "type": "Adventure",
+    "players": "1–4 players",
+    "color": "pink",
+    "icon": "🗺️",
+    "description": "Explore colorful worlds and take on challenges."
+  },
+  {
+    "name": "Arcade Rush",
+    "type": "Action",
+    "players": "1–4 players",
+    "color": "purple",
+    "icon": "🕹️",
+    "description": "Fast arcade challenges and high-score runs."
+  }
 ];
 
 export default function App() {
@@ -329,7 +376,7 @@ export default function App() {
       <div className="page-content">
         {notice && <div className="notice"><Sparkles size={16}/>{notice}<button onClick={() => setNotice("")}><X size={15}/></button></div>}
         {page === "home" && <HomePage username={username} online={online} rooms={rooms} setPage={setPage} setNotice={setNotice}/>}
-        {page === "games" && <GamesPage rooms={rooms} myLobby={myLobby} lobbyCode={lobbyCode} setLobbyCode={setLobbyCode} lobbyError={lobbyError} createLobby={createLobby} joinLobby={joinLobby} leaveLobby={leaveLobby} startLobby={startLobby}/>}
+        {page === "games" && <GamesPage session={session} rooms={rooms} myLobby={myLobby} lobbyCode={lobbyCode} setLobbyCode={setLobbyCode} lobbyError={lobbyError} createLobby={createLobby} joinLobby={joinLobby} leaveLobby={leaveLobby} startLobby={startLobby}/>}
         {page === "chat" && <ChatPage username={username} online={online} messages={messages} channel={channel} setChannel={setChannel} messageText={messageText} setMessageText={setMessageText} sendMessage={sendChatMessage} chatFile={chatFile} setChatFile={setChatFile} replyTo={replyTo} setReplyTo={setReplyTo} reactToMessage={reactToMessage} editMessage={editMessage} deleteMessage={deleteMessage} reportMessage={reportMessage}/>}
         {page === "friends" && <PeoplePage online={online} session={session} friendRequests={friendRequests} addFriend={addFriend} respondFriend={respondFriend} openDM={openDM} blockUser={blockUser} dmTarget={dmTarget} dmMessages={dmMessages} dmText={dmText} setDmText={setDmText} sendDM={sendDM} closeDM={() => setDmTarget(null)}/>}
         {page === "admin" && (isAdmin ? <AdminPage stats={adminStats} online={online} reports={reports} updateReport={updateReport}/> : <div className="empty-state"><Shield/><h2>Admin access required</h2><p>Your account does not have administrator permissions.</p></div>)}
@@ -385,12 +432,43 @@ function HomePage({ username, online, rooms, setPage, setNotice }) {
 function StatCard({ icon: Icon, label, value, note, tone }) { return <div className="stat-card"><div className={`stat-icon ${tone}`}><Icon size={18}/></div><div className="stat-label">{label}</div><div className="stat-value">{value}</div><div className="stat-note"><span/> {note}</div></div>; }
 function GameCard({ game, onClick }) { return <button className={`game-card ${game.color}`} onClick={onClick}><div className="game-art"><span>{game.icon}</span><div className="art-shine"/></div><div className="game-info"><div className="game-type">{game.type} <span>•</span> {game.players}</div><h3>{game.name}</h3><p>{game.description}</p><div className="game-play">View game <ArrowRight size={15}/></div></div></button>; }
 
-function GamesPage({ rooms, myLobby, lobbyCode, setLobbyCode, lobbyError, createLobby, joinLobby, leaveLobby, startLobby }) {
-  return <><div className="page-title-row"><div><div className="eyebrow">PLAY TOGETHER</div><h1>Games & lobbies</h1><p className="muted">Pick a game or join friends with a lobby code.</p></div><span className="live-tag"><i/> LIVE SERVERS</span></div>
-    {myLobby && <section className="lobby-panel"><div><div className="eyebrow">YOUR LOBBY · {myLobby.code}</div><h2>{myLobby.game}</h2><p>{myLobby.players.length} player{myLobby.players.length === 1 ? "" : "s"} in this room</p><div className="player-chips">{myLobby.players.map(n => <span key={n}>{n}</span>)}</div></div><div className="lobby-actions"><button className="secondary-btn" onClick={() => navigator.clipboard?.writeText(myLobby.code)}>Copy code</button>{!myLobby.started && <button className="primary-btn" onClick={startLobby}>Start game <ArrowRight size={16}/></button>}<button className="quiet-btn" onClick={leaveLobby}>Leave</button></div></section>}
-    {lobbyError && <div className="form-error">{lobbyError}</div>}
-    <div className="games-layout"><div><div className="section-heading"><div><h2>Game library</h2><p>Choose your kind of fun.</p></div></div><div className="library-grid">{starterGames.map(g => <div className="library-card" key={g.name}><div className={`library-icon ${g.color}`}>{g.icon}</div><div className="library-copy"><h3>{g.name}</h3><p>{g.description}</p><small>{g.players}</small></div><button className="icon-btn add-game" title={`Create ${g.name} lobby`} onClick={() => createLobby(g.name)}><Plus/></button></div>)}</div></div>
-    <aside className="join-panel"><div className="panel-icon"><Hash/></div><h2>Got an invite?</h2><p>Enter a lobby code from a friend and jump right in.</p><input className="code-input" value={lobbyCode} onChange={e => setLobbyCode(e.target.value.toUpperCase())} placeholder="E.G. A4B29F" maxLength={12}/><button className="primary-btn full" onClick={() => joinLobby(lobbyCode)}>Join lobby <ArrowRight size={16}/></button><div className="join-divider"/><div className="eyebrow">PUBLIC LOBBIES <span className="count">{rooms.length}</span></div>{rooms.length ? rooms.map(r => <div className="room-row" key={r.code}><div className="room-avatar">🎮</div><div><b>{r.game}</b><small>{r.players.length} players · {r.code}</small></div><button onClick={() => joinLobby(r.code)}>Join</button></div>) : <div className="empty-small">No public lobbies yet. Create one!</div>}</aside></div>
+function GamesPage({ rooms, myLobby, lobbyCode, setLobbyCode, lobbyError, createLobby, joinLobby, leaveLobby, startLobby, session }) {
+  const [category,setCategory]=useState("All");
+  const [search,setSearch]=useState("");
+  const [recent,setRecent]=useState(()=>{try{return JSON.parse(localStorage.getItem("nexus_recent_games")||"[]")}catch{return[]}});
+  const [selected,setSelected]=useState(null);
+  const [submitOpen,setSubmitOpen]=useState(false);
+  const [submission,setSubmission]=useState({name:"",url:"",description:"",category:"Action"});
+  const [submitMessage,setSubmitMessage]=useState("");
+  const [leaderboard,setLeaderboard]=useState([]);
+  const categories=["All",...new Set(starterGames.map(g=>g.type))];
+  const visible=starterGames.filter(g=>(category==="All"||g.type===category)&&((g.name+" "+g.description).toLowerCase().includes(search.toLowerCase())));
+  useEffect(()=>{if(!supabase)return;supabase.from("game_scores").select("username,game_name,score").order("score",{ascending:false}).limit(10).then(({data})=>setLeaderboard(data||[]));},[]);
+  function launch(game){
+    const next=[game.name,...recent.filter(n=>n!==game.name)].slice(0,6);
+    setRecent(next);localStorage.setItem("nexus_recent_games",JSON.stringify(next));setSelected(game);
+  }
+  async function submitGame(e){
+    e.preventDefault();setSubmitMessage("");
+    if(!session?.user||!supabase){setSubmitMessage("Sign in to submit a game.");return;}
+    try{const {error}=await supabase.from("game_submissions").insert({user_id:session.user.id,name:submission.name.trim(),url:submission.url.trim(),description:submission.description.trim(),category:submission.category});
+      if(error)throw error;setSubmitMessage("Game submitted for review!");setSubmission({name:"",url:"",description:"",category:"Action"});
+    }catch(err){setSubmitMessage(err.message||"Could not submit game.");}
+  }
+  return <>
+    <div className="page-title-row"><div><div className="eyebrow">PLAY TOGETHER</div><h1>Games hub</h1><p className="muted">Discover games, challenge friends, and climb the leaderboard.</p></div><span className="live-tag"><i/> MULTIPLAYER READY</span></div>
+    {myLobby&&<section className="lobby-panel"><div><div className="eyebrow">YOUR LOBBY · {myLobby.code}</div><h2>{myLobby.game}</h2><p>{myLobby.players.length} player{myLobby.players.length===1?"":"s"} in this room</p><div className="player-chips">{myLobby.players.map((n,i)=><span key={n+i}>{n}</span>)}</div></div><div className="lobby-actions"><button className="secondary-btn" onClick={()=>navigator.clipboard?.writeText(myLobby.code)}>Copy code</button>{!myLobby.started&&<button className="primary-btn" onClick={startLobby}>Start game <ArrowRight size={16}/></button>}<button className="quiet-btn" onClick={leaveLobby}>Leave</button></div></section>}
+    {lobbyError&&<div className="form-error">{lobbyError}</div>}
+    <section className="game-featured"><div><div className="eyebrow">FEATURED GAME</div><h2>Neon Racers</h2><p>Bring your crew and race for the top spot.</p><button className="primary-btn" onClick={()=>{const g=starterGames.find(x=>x.name==="Neon Racers");createLobby(g.name);}}>Create multiplayer lobby <ArrowRight size={16}/></button></div><div className="featured-emoji">🏎️</div></section>
+    <div className="games-toolbar"><div><h2>Game library</h2><p className="muted">Find your next favorite.</p></div><button className="secondary-btn" onClick={()=>setSubmitOpen(x=>!x)}><Plus size={15}/> Submit a game</button></div>
+    <input className="game-search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search games..."/>
+    <div className="game-categories">{categories.map(c=><button key={c} className={category===c?"selected":""} onClick={()=>setCategory(c)}>{c}</button>)}</div>
+    <div className="library-grid game-library-grid">{visible.map(g=><article className="library-card game-library-card" key={g.name}><div className={`library-icon ${g.color}`}>{g.icon}</div><div className="library-copy"><h3>{g.name}</h3><p>{g.description}</p><small>{g.type} · {g.players}</small><div className="game-card-actions"><button className="secondary-btn" onClick={()=>launch(g)}>View game</button><button className="primary-btn" onClick={()=>createLobby(g.name)}>Play with friends</button></div></div></article>)}</div>
+    {recent.length>0&&<section className="game-section"><h2>Recently played</h2><div className="recent-games">{recent.map(n=>{const g=starterGames.find(x=>x.name===n);return g?<button key={n} onClick={()=>launch(g)}>{g.icon} {g.name}</button>:null;})}</div></section>}
+    <div className="games-lower-grid"><section className="join-panel"><div className="panel-icon"><Hash/></div><h2>Join a friend's lobby</h2><p>Enter a lobby code or join a public room.</p><input className="code-input" value={lobbyCode} onChange={e=>setLobbyCode(e.target.value.toUpperCase())} placeholder="E.G. A4B29F" maxLength={12}/><button className="primary-btn full" onClick={()=>joinLobby(lobbyCode)}>Join lobby <ArrowRight size={16}/></button><div className="join-divider"/><div className="eyebrow">PUBLIC LOBBIES <span className="count">{rooms.length}</span></div>{rooms.length?rooms.map(r=><div className="room-row" key={r.code}><div className="room-avatar">🎮</div><div><b>{r.game}</b><small>{r.players.length} players · {r.code}</small></div><button onClick={()=>joinLobby(r.code)}>Join</button></div>):<div className="empty-small">No public lobbies yet. Create one!</div>}</section>
+    <section className="join-panel"><div className="panel-icon">🏆</div><h2>Leaderboard</h2><p>Top scores submitted by players.</p>{leaderboard.length?leaderboard.map((r,i)=><div className="room-row" key={i}><b>#{i+1} {r.username}</b><small>{r.game_name}</small><strong>{r.score}</strong></div>):<div className="empty-small">No scores yet. Leaderboard will fill as games add score reporting.</div>}</section></div>
+    {submitOpen&&<section className="social-panel game-submit-panel"><h2>Submit a game</h2><p className="muted">Share a browser game for the NEXUS team to review.</p><form onSubmit={submitGame}><label>Game name<input required maxLength={60} value={submission.name} onChange={e=>setSubmission({...submission,name:e.target.value})}/></label><label>Game URL<input required type="url" value={submission.url} onChange={e=>setSubmission({...submission,url:e.target.value})} placeholder="https://..."/></label><label>Category<select value={submission.category} onChange={e=>setSubmission({...submission,category:e.target.value})}>{["Action","Adventure","Puzzle","Racing","Party","Trivia","Other"].map(x=><option key={x}>{x}</option>)}</select></label><label>Description<textarea maxLength={240} value={submission.description} onChange={e=>setSubmission({...submission,description:e.target.value})}/></label><button className="primary-btn">Send for review</button>{submitMessage&&<p className="muted">{submitMessage}</p>}</form></section>}
+    {selected&&<div className="game-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setSelected(null)}}><section className="game-modal"><button className="quiet-btn" onClick={()=>setSelected(null)}>Close</button><div className="game-modal-icon">{selected.icon}</div><div className="eyebrow">{selected.type} · {selected.players}</div><h2>{selected.name}</h2><p>{selected.description}</p><p className="muted">This game is in the NEXUS catalog. Create a lobby to gather players; an actual playable game build will be connected here next.</p><button className="primary-btn" onClick={()=>{createLobby(selected.name);setSelected(null)}}>Create multiplayer lobby <ArrowRight size={16}/></button></section></div>}
   </>;
 }
 
