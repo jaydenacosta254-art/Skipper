@@ -1,3 +1,4 @@
+
 name: Deploy Nexus
 
 on:
@@ -10,19 +11,31 @@ permissions:
   pages: write
   id-token: write
 
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci
-      - run: npm run build
+
+      - name: Install dependencies
+        working-directory: ./nexus-hub
+        run: npm install
+
+      - name: Build website
+        working-directory: ./nexus-hub
+        run: npm run build
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: nexus-hub/dist
 
   deploy:
     environment:
