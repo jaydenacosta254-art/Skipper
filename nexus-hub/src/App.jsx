@@ -79,7 +79,7 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [guestProfile, setGuestProfile] = useState(() => { try { return JSON.parse(localStorage.getItem("nexus_guest_profile") || "null"); } catch { return null; } });
   const [profileOpen, setProfileOpen] = useState(false);
-  const [profileDraft, setProfileDraft] = useState({ username: "", avatar_url: "", bio: "", status: "" });
+  const [profileDraft, setProfileDraft] = useState({ username: "", avatar_url: "", bio: "" });
   const [profileBusy, setProfileBusy] = useState(false);
   const [profileFile, setProfileFile] = useState(null);
   const [profileError, setProfileError] = useState("");
@@ -293,12 +293,12 @@ export default function App() {
   }
 
   function openProfileEditor() {
-    setProfileDraft({ username, avatar_url: profile?.avatar_url || guestProfile?.avatar_url || "", bio: profile?.bio || guestProfile?.bio || "", status: profile?.status || guestProfile?.status || "Available" });
+    setProfileDraft({ username, avatar_url: profile?.avatar_url || guestProfile?.avatar_url || "", bio: profile?.bio || guestProfile?.bio || "" });
     setProfileError(""); setProfileFile(null); setProfileOpen(true);
   }
   async function saveProfile(e) {
     e.preventDefault(); setProfileError("");
-    const clean = { username: profileDraft.username.trim().slice(0,24), avatar_url: profileDraft.avatar_url.trim(), bio: profileDraft.bio.trim().slice(0,160), status: profileDraft.status.trim().slice(0,40) || "Available" };
+    const clean = { username: profileDraft.username.trim().slice(0,24), avatar_url: profileDraft.avatar_url.trim(), bio: profileDraft.bio.trim().slice(0,160) };
     if (profileFile && (!profileFile.type.startsWith("image/") || profileFile.size > 5 * 1024 * 1024)) return setProfileError("Choose an image smaller than 5 MB.");
     if (profileFile && (!session?.user || !supabase)) return setProfileError("File uploads require a signed-in account. You can still use an image URL.");
     if (clean.username.length < 2) return setProfileError("Username must be at least 2 characters.");
@@ -521,11 +521,10 @@ function ProfileEditor({ draft, setDraft, onSave, onClose, busy, error, file, se
   return <div className="profile-modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
     <section className="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-editor-title">
       <div className="profile-modal-head"><div><div className="eyebrow">MAKE IT YOURS</div><h2 id="profile-editor-title">Edit profile</h2></div><button className="icon-btn" type="button" onClick={onClose} aria-label="Close"><X/></button></div>
-      <div className="profile-preview"><ProfileAvatar username={draft.username || username} url={draft.avatar_url || avatarUrl}/><div><b>{draft.username || username}</b><small>{draft.status || "Available"}</small></div></div>
+      <div className="profile-preview"><ProfileAvatar username={draft.username || username} url={draft.avatar_url || avatarUrl}/><div><b>{draft.username || username}</b></div></div>
       <form className="profile-form" onSubmit={onSave}>
         <label>Username<input value={draft.username} onChange={e => change("username", e.target.value)} maxLength={24} minLength={2} required/></label>
         <label>Upload profile picture<input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)}/><small>{file ? `Selected: ${file.name}` : "Choose an image from your device (max 5 MB)."} Uploads are saved to your account.</small></label>\n        <label>Or use a profile picture URL<input type="url" value={draft.avatar_url} onChange={e => { change("avatar_url", e.target.value); if (file) setFile(null); }} placeholder="https://example.com/photo.jpg"/><small>Paste a direct link to an image instead.</small></label>
-        <label>Status<input value={draft.status} onChange={e => change("status", e.target.value)} maxLength={40} placeholder="Available"/></label>
         <label>About me<textarea value={draft.bio} onChange={e => change("bio", e.target.value)} maxLength={160} rows={3} placeholder="Tell the community a little about yourself..."/></label>
         {error && <div className="form-error">{error}</div>}
         <div className="profile-form-actions"><button className="quiet-btn" type="button" onClick={onClose}>Cancel</button><button className="primary-btn" disabled={busy}>{busy ? "Saving..." : "Save changes"} <ArrowRight size={16}/></button></div>
