@@ -582,7 +582,7 @@ function DuckDuckGoPage({query,setQuery}) {
     e.preventDefault();
     const term=query.trim();
     if(!term)return;
-    window.open("https://duckduckgo.com/?q="+encodeURIComponent(term)," _blank","noopener,noreferrer");
+    window.open("https://duckduckgo.com/?q="+encodeURIComponent(term) ,"_blank","noopener,noreferrer");
   }
   return <section className="social-panel" style={{maxWidth:900,margin:"0 auto",padding:28}}>
     <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
