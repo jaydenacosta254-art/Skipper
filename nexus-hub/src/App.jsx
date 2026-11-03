@@ -36,6 +36,7 @@ export default function App() {
   const [lobbyCode, setLobbyCode] = useState("");
   const [lobbyError, setLobbyError] = useState("");
   const [notice, setNotice] = useState("");
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [adminStats, setAdminStats] = useState({ online: 0, rooms: 0, games: 3 });
 
   const username = profile?.username || guest || "Guest";
@@ -139,7 +140,7 @@ export default function App() {
     </aside>
     {mobileNav && <div className="scrim" onClick={() => setMobileNav(false)}/>}
     <main className="main-area">
-      <header className="topbar"><button className="icon-btn mobile-menu" onClick={() => setMobileNav(true)}><Menu/></button><div className="crumb">Workspace <span>/</span> <b>{nav.find(n => n.id === page)?.label || "Overview"}</b></div><div className="top-actions"><div className="search-box"><Search size={16}/><input placeholder="Search Nexus..." onKeyDown={e => e.key === "Enter" && setNotice("Search is ready to connect to your content index.")}/><kbd>⌘ K</kbd></div><button className="icon-btn notification" title="Notifications"><Bell size={18}/><i/></button><div className="avatar small">{initials}</div></div></header>
+      <header className="topbar"><button className="icon-btn mobile-menu" onClick={() => setMobileNav(true)}><Menu/></button><div className="crumb">Workspace <span>/</span> <b>{nav.find(n => n.id === page)?.label || "Overview"}</b></div><div className="top-actions"><div className="search-box"><Search size={16}/><input placeholder="Search Nexus..." onKeyDown={e => e.key === "Enter" && setNotice("Search is ready to connect to your content index.")}/><kbd>⌘ K</kbd></div><div className="notification-wrap"><button className="icon-btn notification" type="button" title="Notifications" aria-label="Notifications" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen(open => !open)}><Bell size={18}/><i/></button>{notificationsOpen && <div className="notification-popover" role="dialog" aria-label="Notifications"><div className="notification-popover-head"><b>Notifications</b><button type="button" onClick={() => setNotificationsOpen(false)} aria-label="Close notifications"><X size={15}/></button></div><div className="notification-empty"><Bell size={22}/><b>You are all caught up</b><span>New notifications will appear here.</span></div></div>}</div><div className="avatar small">{initials}</div></div></header>
       <div className="page-content">
         {notice && <div className="notice"><Sparkles size={16}/>{notice}<button onClick={() => setNotice("")}><X size={15}/></button></div>}
         {page === "home" && <HomePage username={username} online={online} rooms={rooms} setPage={setPage} setNotice={setNotice}/>}
