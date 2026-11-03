@@ -128,3 +128,15 @@ drop policy if exists "Chat uploads are publicly viewable" on storage.objects;
 create policy "Chat uploads are publicly viewable" on storage.objects for select using(bucket_id='chat-uploads');
 drop policy if exists "Users upload chat attachments" on storage.objects;
 create policy "Users upload chat attachments" on storage.objects for insert to authenticated with check(bucket_id='chat-uploads' and (storage.foldername(name))[1]=auth.uid()::text);
+
+
+create table if not exists public.blocked_users (
+ blocker_id uuid not null references auth.users(id) on delete cascade,
+ blocked_id uuid not null references auth.users(id) on delete cascade,
+ created_at timestamptz not null default now(),
+ primary key(blocker_id,blocked_id),
+ check(blocker_id <> blocked_id)
+);
+alter table public.blocked_users enable row level security;
+drop policy if exists "Users manage their own blocked list" on public.blocked_users;
+create policy "Users manage their own blocked list" on public.blocked_users for all to authenticated using(auth.uid()=blocker_id) with check(auth.uid()=blocker_id);
