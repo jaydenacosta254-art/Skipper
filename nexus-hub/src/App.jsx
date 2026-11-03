@@ -3,7 +3,8 @@ import { io } from "socket.io-client";
 import {
   Activity, ArrowRight, Bell, ChevronDown, CircleHelp, Gamepad2, Gauge,
   Hash, LayoutDashboard, LogOut, Menu, MessageCircle, Plus, Search,
-  Settings, Shield, Sparkles, Users, X, Zap, Trophy, Brain, Puzzle, Compass, Joystick, PartyPopper, CarFront, Goal
+  Settings, Shield, Sparkles, Users, X, Zap, Trophy, Brain, Puzzle, Compass, Joystick, PartyPopper, CarFront, Goal,
+  Medal, Flame, Star, Palette, Crown, CheckCircle2, Gift, Target
 } from "lucide-react";
 import { supabase } from "./supabase";
 
