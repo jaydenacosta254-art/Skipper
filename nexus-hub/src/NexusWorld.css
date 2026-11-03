@@ -1,0 +1,81 @@
+/* NEXUS World expansion */
+.nexus-world{display:grid;gap:16px;min-width:0}
+.world-tabs{display:flex;flex-wrap:wrap;gap:8px;padding:5px;border:1px solid #29334a;border-radius:12px;background:#111827}
+.world-tabs button,.world-decoration-options button,.world-layout-options button{display:inline-flex;align-items:center;gap:7px;border:1px solid transparent;border-radius:9px;background:transparent;color:#aeb8ca;padding:10px 13px;font-size:11px;font-weight:700;cursor:pointer}
+.world-tabs button.active,.world-decoration-options button.selected,.world-layout-options button.selected{background:#2a2444;border-color:#514475;color:#e2d9ff}
+.world-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:200px;padding:26px;border:1px solid #48405e;border-radius:17px;overflow:hidden}
+.world-kicker{font-size:9px;font-weight:800;letter-spacing:2px;color:#cabdff}
+.world-hero h2{font:700 30px 'Space Grotesk';margin:9px 0}
+.world-hero p{max-width:560px;color:#c2c7d5;font-size:12px;line-height:1.6}
+.world-hero-art{font-size:100px;color:#ded6ff;opacity:.3;padding:0 25px;text-shadow:0 0 40px #b49aff}
+.world-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:15px}
+.world-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.world-panel{min-width:0;border:1px solid #29334a;background:#111827;border-radius:14px;padding:18px}
+.world-panel h2{display:flex;align-items:center;gap:9px;font:600 16px 'Space Grotesk';margin:0 0 8px}
+.world-panel h2 svg{width:18px;height:18px;color:#b9a8ff}
+.world-panel h3{font:600 13px 'Space Grotesk';margin:17px 0 8px}
+.world-panel>p.muted{font-size:10px;line-height:1.6;color:#98a4b8;margin:0 0 13px}
+.world-empty,.world-note{font-size:10px;line-height:1.6;color:#909db2}
+.world-weekly{background:linear-gradient(135deg,#172238,#171527);border-color:#3b3658}
+.world-weekly h2{font-size:22px;margin-top:7px}
+.world-chip-list,.world-add-games{display:flex;flex-wrap:wrap;gap:7px}
+.world-chip-list button,.world-add-games button,.world-collection-list span{border:1px solid #344057;border-radius:8px;background:#1a2435;color:#dbe3f1;padding:8px 10px;font-size:10px}
+.world-form{display:flex;gap:8px;margin:12px 0;min-width:0}
+.world-form.vertical{display:grid}
+.world-form input,.world-form select,.world-form textarea,.world-panel>select{width:100%;min-width:0;border:1px solid #344057;border-radius:8px;background:#0c1421;color:#edf1fa;padding:10px;font:inherit;font-size:11px}
+.world-form textarea{min-height:75px;resize:vertical}
+.world-form button{white-space:nowrap}
+.world-collection-list{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+.world-add-games{margin-top:10px}
+.world-add-games button{display:flex;align-items:center;gap:5px;cursor:pointer}
+.world-challenge{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-top:1px solid #273247}
+.world-challenge>div{display:grid;gap:4px;min-width:0}
+.world-challenge b{font-size:11px}
+.world-challenge small{font-size:9px;color:#919db2}
+.world-challenge button,.world-moderation-item button{display:inline-flex;align-items:center;gap:5px;border:1px solid #514475;border-radius:8px;background:#292441;color:#dcd4ff;padding:8px 10px;font-size:9px;white-space:nowrap}
+.world-challenge button:disabled{opacity:.55}
+.world-online-list{display:flex;flex-wrap:wrap;gap:8px}
+.world-online-list span{display:inline-flex;align-items:center;gap:6px;border-radius:20px;background:#18293a;padding:7px 10px;font-size:10px}
+.world-online-list i{width:6px;height:6px;border-radius:50%;background:#5bd79a;box-shadow:0 0 8px #5bd79a}
+.world-activity{display:grid;gap:3px;padding:8px 0;border-top:1px solid #273247}
+.world-activity b{font-size:10px}.world-activity span,.world-activity small{font-size:9px;color:#9ba7bb}
+.world-check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}
+.world-check-grid label{display:flex;align-items:center;gap:7px;font-size:10px;color:#d6deeb}
+.world-check-grid input{accent-color:#9b83ff}
+.world-decoration-options,.world-layout-options,.world-background-options{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 14px}
+.world-profile-preview{position:relative;isolation:isolate;overflow:hidden;display:grid;gap:7px;min-height:150px;padding:20px;border:1px solid #4b416d;border-radius:13px;background:linear-gradient(120deg,#29224a,#111827);animation:worldFloat 5s ease-in-out infinite}
+.world-profile-preview>b{font:700 20px 'Space Grotesk'}
+.world-profile-preview>small{font-size:10px;color:#bbc2d2}
+.world-preview-glow{position:absolute;right:24px;top:10px;font-size:48px;color:#c8b9ff;opacity:.4}
+.world-preview-games{display:flex;flex-wrap:wrap;gap:6px}
+.world-preview-games span{padding:6px 8px;border-radius:7px;background:#ffffff15;font-size:9px}
+.world-decoration-orbit:before,.world-decoration-orbit:after{content:"";position:absolute;z-index:-1;width:160px;height:160px;right:-20px;top:-20px;border:1px solid #c9b8ff66;border-radius:50%;animation:worldSpin 12s linear infinite}
+.world-decoration-orbit:after{width:115px;height:115px;right:3px;top:3px;animation-direction:reverse}
+.world-decoration-spark .world-preview-glow{animation:worldSpin 7s linear infinite}
+.world-decoration-pulse{box-shadow:0 0 0 1px #a78bfa55,0 0 24px #a78bfa22}
+.world-layout-preview{display:grid;gap:7px;margin-top:14px}
+.world-layout-preview div{padding:10px;border-radius:8px;background:#202b3e;color:#d5dceb;font-size:10px}
+.world-layout-preview.layout-spotlight{grid-template-columns:2fr 1fr}.world-layout-preview.layout-spotlight div:first-child{grid-row:span 2}
+.world-layout-preview.layout-compact{grid-template-columns:repeat(3,1fr)}
+.world-layout-preview.layout-tiles{grid-template-columns:repeat(2,1fr)}.world-layout-preview.layout-tiles div{min-height:60px}
+.world-background-options button{display:grid;gap:6px;border:1px solid #344057;border-radius:8px;background:#182234;color:#dce4f2;padding:8px;font-size:9px}
+.world-background-options button.selected{border-color:#ad9aff}
+.world-background-options button span{width:74px;height:34px;border-radius:6px}
+.world-background-preview{display:grid;place-items:center;min-height:80px;border:1px solid #4a5368;border-radius:9px;color:#fff;font-weight:700;font-size:12px}
+.world-group-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid #293449}
+.world-group-card>div{display:grid;gap:4px;min-width:0}.world-group-card b{font-size:11px}.world-group-card small{font-size:9px;color:#9ca8bc}
+.world-group-chat{margin-top:15px;padding:13px;border:1px solid #35415a;border-radius:10px;background:#0d1522}
+.world-group-chat-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.world-group-chat-head b{font-size:12px}
+.world-group-messages{display:grid;gap:7px;max-height:220px;overflow:auto;padding:10px 0}
+.world-group-messages p{margin:0;padding:8px;border-radius:7px;background:#1b2638;font-size:10px;color:#d8e0ed}
+.world-group-messages small{color:#8e9bb0;font-size:10px}
+.world-news-item{padding:13px 0;border-top:1px solid #293449}
+.world-news-item>div{display:flex;justify-content:space-between;gap:12px}.world-news-item b{font-size:12px}.world-news-item small{font-size:9px;color:#909db2}
+.world-news-item p{font-size:10px;line-height:1.65;color:#c4ccda;white-space:pre-wrap}
+.world-moderation-item{display:grid;gap:5px;padding:11px 0;border-top:1px solid #293449}
+.world-moderation-item b{font-size:11px}.world-moderation-item small{font-size:9px;color:#9ca8bc;overflow-wrap:anywhere}.world-moderation-item button{justify-self:start}
+@keyframes worldFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes worldSpin{to{transform:rotate(360deg)}}
+@media(max-width:800px){.world-grid{grid-template-columns:1fr}.world-hero{padding:20px}.world-hero-art{font-size:70px;padding:0}}
+@media(max-width:560px){.world-panel{padding:14px}.world-hero{min-height:0}.world-hero h2{font-size:24px}.world-hero-art{display:none}.world-form{flex-direction:column}.world-form button{width:100%;justify-content:center}.world-news-item>div{flex-direction:column;gap:4px}.world-check-grid{grid-template-columns:1fr}.world-layout-preview.layout-compact{grid-template-columns:1fr 1fr}}
