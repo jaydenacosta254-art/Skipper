@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Plus, Save, Trash2, Gamepad2, Megaphone, Settings, X } from "lucide-react";
 
 export default function NexusSiteManager({ games = [], announcements = [], settings = {}, onSave, busy = false }) {
@@ -8,6 +8,7 @@ export default function NexusSiteManager({ games = [], announcements = [], setti
   const [newGame, setNewGame] = useState({ name:"", type:"Action", players:"Single-player", mode:"single", color:"blue", icon:"🎮", description:"", externalUrl:"" });
   const [announcement, setAnnouncement] = useState("");
   const [error, setError] = useState("");
+  useEffect(() => { setDraftGames(games); setDraftAnnouncements(announcements); setDraftSettings({ allowGameSubmissions:true, showOnlineStats:true, ...settings }); }, [games, announcements, settings]);
 
   function addGame(e) {
     e.preventDefault();
