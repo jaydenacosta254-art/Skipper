@@ -79,6 +79,18 @@ const starterGames = [
     allowSameOrigin: true
   },
   {
+    name: "Moto X3M",
+    type: "Racing",
+    players: "Single-player",
+    mode: "single",
+    color: "orange",
+    icon: "🏍️",
+    imageUrl: "https://img.gamedistribution.com/5b0abd4c0faa4f5eb190a9a16d5a1b4c-512x512.jpeg",
+    description: "Race your motorcycle through challenging obstacle courses, perform stunts, and beat the clock across 25 levels.",
+    externalUrl: "https://html5.gamedistribution.com/5b0abd4c0faa4f5eb190a9a16d5a1b4c/",
+    openMode: "embed"
+  },
+  {
     name: "Basket Random",
     type: "Sports",
     players: "1v1 · Local multiplayer",
@@ -188,7 +200,7 @@ export default function App() {
       if (data) {
         if (Array.isArray(data.games) && data.games.length) setSiteGames(() => {
           const missingStarterGames = starterGames.filter(game =>
-            ["basket random", "escape road 3"].includes(game.name.toLowerCase()) &&
+            ["basket random", "escape road 3", "moto x3m"].includes(game.name.toLowerCase()) &&
             !data.games.some(savedGame => savedGame.name?.toLowerCase() === game.name.toLowerCase())
           );
           return [...data.games, ...missingStarterGames];
