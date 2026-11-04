@@ -65,7 +65,12 @@ export default function NexusUpgradeCenter({ games = [], username, userId, stats
     return () => { active = false; };
   }, [userId, username]);
 
+  const partyGames = useMemo(() => games.filter(game => typeof game === "object" && game && (game.mode === "multiplayer" || game.mode === "external-multiplayer" || game.multiplayer === true)), [games]);
+  const partyGameNames = useMemo(() => partyGames.map(game => game.name).filter(Boolean), [partyGames]);
   const gameNames = useMemo(() => games.map(g => typeof g === "string" ? g : g?.name).filter(Boolean), [games]);
+  useEffect(() => {
+    if (!partyGameNames.includes(questGame)) setQuestGame(partyGameNames[0] || "");
+  }, [partyGameNames, questGame]);
   const player = { games_played: Number(stats.games_played || 0), level: Number(stats.level || 1), favorites: Number(favoriteCount || stats.favorites || 0) };
   const unlocked = achievements.filter(a => a.test(player));
   const saveShowcase = next => {
@@ -115,9 +120,9 @@ export default function NexusUpgradeCenter({ games = [], username, userId, stats
       <article className="upgrade-card">
         <div className="upgrade-card-head"><div><PartyPopper/><h3>Play with your party</h3></div></div>
         <p className="muted">Start a private lobby for a game and share its invite code with friends.</p>
-        <select value={questGame} onChange={e => setQuestGame(e.target.value)}>{gameNames.map(name => <option key={name}>{name}</option>)}</select>
-        <button className="upgrade-primary" onClick={() => { const game = games.find(g => g.name === questGame) || games[0]; if (game) onCreateParty(game.name); }}> <Users size={15}/> Create private party</button>
-        <small className="upgrade-hint">Party creation uses the existing NEXUS private-lobby system.</small>
+        <select value={questGame} onChange={e => setQuestGame(e.target.value)} disabled={!partyGames.length}>{partyGames.map(game => <option key={game.name} value={game.name}>{game.name}</option>)}</select>
+        <button className="upgrade-primary" disabled={!partyGames.length} onClick={() => { const game = partyGames.find(g => g.name === questGame); if (game) onCreateParty(game.name); }}> <Users size={15}/> Create private party</button>
+        <small className="upgrade-hint">{partyGames.length ? "Only games marked as multiplayer appear here." : "No multiplayer games are currently available for private parties."}</small>
       </article>
       <article className="upgrade-card">
         <div className="upgrade-card-head"><div><Activity/><h3>Friend activity</h3></div></div>
