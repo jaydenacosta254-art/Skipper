@@ -38,6 +38,19 @@ export default function NexusUpgradeCenter({ games = [], username, userId, stats
   useEffect(() => {
     if (!supabase || !userId) return;
     let active = true;
+    const today = new Date().toISOString().slice(0, 10);
+    supabase.from("nexus_daily_quest_progress").select("quest_ids").eq("user_id", userId).eq("quest_date", today).maybeSingle()
+      .then(({ data }) => {
+        if (!active || !data?.quest_ids) return;
+        setQuestDone(data.quest_ids);
+        localStorage.setItem("nexus_upgrade_quests_" + today + "_" + (username || "guest"), JSON.stringify(data.quest_ids));
+      });
+    return () => { active = false; };
+  }, [userId, username]);
+
+  useEffect(() => {
+    if (!supabase || !userId) return;
+    let active = true;
     Promise.all([
       supabase.from("nexus_favorites").select("game_name").eq("user_id", userId),
       supabase.from("nexus_achievement_showcase").select("achievement_ids").eq("user_id", userId).maybeSingle()
@@ -65,6 +78,7 @@ export default function NexusUpgradeCenter({ games = [], username, userId, stats
     setQuestDone(next);
     const key = "nexus_upgrade_quests_" + new Date().toISOString().slice(0, 10) + "_" + (username || "guest");
     localStorage.setItem(key, JSON.stringify(next));
+    if (supabase && userId) supabase.from("nexus_daily_quest_progress").upsert({ user_id: userId, quest_date: new Date().toISOString().slice(0, 10), quest_ids: next, updated_at: new Date().toISOString() }, { onConflict: "user_id,quest_date" }).then(({ error }) => { if (error) setNotice("Daily quest progress could not sync. Run the NEXUS upgrade SQL setup."); });
   };
   const launchGame = game => {
     if (!game) return;
