@@ -104,3 +104,7 @@ create policy "Admins delete events" on public.nexus_events
 alter table public.profiles
   add column if not exists profile_attributes text[] not null default '{}',
   add column if not exists profile_background text not null default 'violet';
+
+
+-- Refresh Supabase/PostgREST so the new profile fields are immediately visible.
+notify pgrst, 'reload schema';
