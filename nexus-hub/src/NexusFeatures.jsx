@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
-import { Star, Target, Trophy, MessageSquare, CalendarDays, Users, Palette, Medal, BarChart3, Plus, Send, Heart, Crown, Sparkles, Search, Gamepad2 } from "lucide-react";
+import { Star, Target, Trophy, MessageSquare, Users, Palette, Medal, BarChart3, Plus, Send, Heart, Crown, Sparkles, Search, Gamepad2 } from "lucide-react";
 
 const tabs = [
   ["games","My games",Gamepad2],["missions","Missions",Target],["community","Community",MessageSquare],
