@@ -385,3 +385,11 @@ button,input,textarea,select{max-width:100%}
 .home-announcements p{margin:8px 0 0;color:#e4e7f4}
 @media(max-width:1050px){.site-manager-game{grid-template-columns:repeat(2,minmax(0,1fr))}.site-manager-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.site-manager-game,.site-manager-fields{grid-template-columns:1fr}.site-manager-fields .site-manager-description{grid-column:auto}.site-manager .page-title-row{align-items:flex-start;flex-direction:column}}
+
+/* Custom game artwork in the admin manager and game catalog */
+.site-manager-image-field{display:flex;align-items:center;gap:10px;min-width:0;padding:8px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.025)}
+.site-manager-image-field label{display:grid;gap:6px;min-width:0;flex:1;color:#cbd2e2;font-size:11px}
+.site-manager-image-field input[type=file]{font-size:10px;padding:6px;cursor:pointer;color:#dce2f2}
+.site-manager-image-field img,.site-manager-image-fallback{width:48px;height:48px;flex:0 0 48px;object-fit:cover;border-radius:9px;background:#252d3d;display:grid;place-items:center;font-size:24px}
+.game-uploaded-icon{width:100%;height:100%;object-fit:cover;border-radius:inherit}
+.game-art-uploaded-image{width:100%;height:100%;object-fit:cover;border-radius:inherit}
