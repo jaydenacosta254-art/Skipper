@@ -9,6 +9,7 @@ import {
 import { supabase } from "./supabase";
 import NexusFeatures from "./NexusFeatures";
 import NexusWorld from "./NexusWorld";
+import NexusUpgradeCenter from "./NexusUpgradeCenter";
 
 const API = "https://nexus-api-7rxk.onrender.com";
 const starterGames = [
@@ -503,7 +504,7 @@ export default function App() {
         {page === "games" && <GamesPage socket={socket} username={username} session={session} rooms={rooms} myLobby={myLobby} lobbyCode={lobbyCode} setLobbyCode={setLobbyCode} lobbyError={lobbyError} createLobby={createLobby} joinLobby={joinLobby} leaveLobby={leaveLobby} startLobby={startLobby} recordGame={recordGame} gameToOpen={worldGameToOpen} onGameOpenHandled={() => setWorldGameToOpen("")}/>}
         {page === "rewards" && <RewardsPage username={username} stats={playerStats} activity={activityFeed} leaderboard={playerLeaderboard} loading={rewardsLoading} onClaimDaily={claimDailyChallenge} onChooseTheme={chooseTheme}/>}
         {page === "chat" && <ChatPage username={username} online={online} messages={messages} channel={channel} setChannel={setChannel} messageText={messageText} setMessageText={setMessageText} sendMessage={sendChatMessage} chatFile={chatFile} setChatFile={setChatFile} replyTo={replyTo} setReplyTo={setReplyTo} reactToMessage={reactToMessage} editMessage={editMessage} deleteMessage={deleteMessage} reportMessage={reportMessage}/>}
-        {page === "features" && <NexusFeatures session={session} username={username} stats={playerStats} onlineCount={online.length} games={starterGames} isAdmin={isAdmin} setNotice={setNotice}/>}
+        {page === "features" && <><NexusFeatures session={session} username={username} stats={playerStats} onlineCount={online.length} games={starterGames} isAdmin={isAdmin} setNotice={setNotice}/><NexusUpgradeCenter games={starterGames} username={username} userId={session?.user?.id} stats={playerStats} activity={activityFeed} notifications={notifications} isAdmin={isAdmin} onOpenGame={game => { setWorldGameToOpen(game.name); setPage("games"); }} onCreateParty={game => createLobby(game, true)} onGo={setPage} setNotice={setNotice}/></>}
         {page === "world" && <NexusWorld session={session} username={username} profile={profile} games={starterGames} online={online} activity={activityFeed} isAdmin={isAdmin} onOpenGames={() => setPage("games")} onPlayGame={game => { setWorldGameToOpen(game.name); setPage("games"); }} onProfileUpdate={status => setProfile(old => old ? { ...old, status } : old)} setNotice={setNotice}/> }
         {page === "friends" && <PeoplePage online={online} session={session} friendRequests={friendRequests} addFriend={addFriend} respondFriend={respondFriend} openDM={openDM} blockUser={blockUser} dmTarget={dmTarget} dmMessages={dmMessages} dmText={dmText} setDmText={setDmText} sendDM={sendDM} closeDM={() => setDmTarget(null)}/>}
         {page === "admin" && (isAdmin ? <AdminPage stats={adminStats} online={online} reports={reports} updateReport={updateReport} gameSubmissions={gameSubmissions} reviewGameSubmission={reviewGameSubmission}/> : <div className="empty-state"><Shield/><h2>Admin access required</h2><p>Your account does not have administrator permissions.</p></div>)}
