@@ -176,7 +176,7 @@ export default function App() {
         const fallbackName = `${cleanName.slice(0, 15)}_${user.id.slice(0, 6)}`;
         const retry = await supabase.from("profiles").upsert(
           { id: user.id, username: fallbackName, role: "member" }, { onConflict: "id" }
-        ).select("username, role, avatar_url, bio, status").single();
+        ).select("username, role, avatar_url, bio, status, profile_attributes, profile_background").single();
         created = retry.data;
       }
       if (!cancelled) setProfile(created || { username: cleanName, role: "member" });
@@ -274,7 +274,7 @@ export default function App() {
     ...online.filter(name => name.toLowerCase().includes(searchTerm)).map(name => ({type:"Member",title:name,detail:"Currently online",page:"friends"})),
     ...messages.filter(message => !message.system && ((message.text||message.message||"").toLowerCase().includes(searchTerm) || (message.username||"").toLowerCase().includes(searchTerm))).slice(-5).reverse().map(message => ({type:"Chat message",title:message.username||"Community member",detail:String(message.text||message.message||"").slice(0,90),page:"chat"}))
   ].slice(0,9) : [];
-  function openSearchResult(result) { setPage(result.page); setGlobalSearch(""); setSearchOpen(false); setNotice(result.type==="Chat message" ? "Opened community chat. Search for the message there." : result.type==="Game" ? "Opened the Games hub." : result.type==="Member" ? "Opened People to view members." : "Opened "+result.title+"."); }
+  function openSearchResult(result) { if (result.page === "profile") openProfilePage(); else setPage(result.page); setGlobalSearch(""); setSearchOpen(false); setNotice(result.type==="Chat message" ? "Opened community chat. Search for the message there." : result.type==="Game" ? "Opened the Games hub." : result.type==="Member" ? "Opened People to view members." : "Opened "+result.title+"."); }
 
   async function submitAuth(e) {
     e.preventDefault(); setAuthError(""); setAuthSuccess(""); setAuthBusy(true);
@@ -347,7 +347,7 @@ export default function App() {
           const { data: publicData } = supabase.storage.from("profile-avatars").getPublicUrl(filePath);
           clean.avatar_url = publicData.publicUrl;
         }
-        const { data, error } = await supabase.from("profiles").update(clean).eq("id", session.user.id).select("username, role, avatar_url, bio, status").single();
+        const { data, error } = await supabase.from("profiles").update(clean).eq("id", session.user.id).select("username, role, avatar_url, bio, status, profile_attributes, profile_background").single();
         if (error) throw error;
         setProfile(data);
         setProfileDraft({ ...clean });
@@ -519,7 +519,7 @@ export default function App() {
       <div className="workspace-label">WORKSPACE <ChevronDown size={13}/></div>
       <div className="workspace-card"><div className="workspace-icon">N</div><div><b>Nexus Community</b><small>Free community</small></div><span className="online-dot"/></div>
       <div className="nav-label">MENU</div>
-      <nav>{nav.map(item => <button key={item.id} className={`nav-item ${page === item.id ? "active" : ""}`} onClick={() => { setPage(item.id); setMobileNav(false); }}><item.icon size={18}/><span>{item.label}</span>{item.id === "chat" && <i className="nav-ping"/>}</button>)}</nav>
+      <nav>{nav.map(item => <button key={item.id} className={`nav-item ${page === item.id ? "active" : ""}`} onClick={() => { if (item.id === "profile") openProfilePage(); else setPage(item.id); setMobileNav(false); }}><item.icon size={18}/><span>{item.label}</span>{item.id === "chat" && <i className="nav-ping"/>}</button>)}</nav>
       <div className="sidebar-bottom"><div className="help-card"><div className="help-icon"><CircleHelp size={17}/></div><b>Need a hand?</b><p>Explore the community and find your next game.</p><button onClick={() => setPage("games")}>Explore games <ArrowRight size={14}/></button></div><div className="user-card"><button className="profile-trigger" onClick={openProfileEditor} title="Edit your profile"><ProfileAvatar username={username} url={profile?.avatar_url || guestProfile?.avatar_url}/><span className="user-meta"><b>{username}</b><small>{isAdmin ? "Administrator" : "Community member"}</small></span></button><button className="icon-btn" title="Sign out" onClick={signOut}><LogOut size={17}/></button></div></div>
     </aside>
     {mobileNav && <div className="scrim" onClick={() => setMobileNav(false)}/>}
