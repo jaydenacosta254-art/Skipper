@@ -108,3 +108,8 @@ alter table public.profiles
 
 -- Refresh Supabase/PostgREST so the new profile fields are immediately visible.
 notify pgrst, 'reload schema';
+
+
+-- Ensure the event board has the table privileges required by the Supabase API.
+grant select on public.nexus_events to anon, authenticated;
+grant insert, update, delete on public.nexus_events to authenticated;
