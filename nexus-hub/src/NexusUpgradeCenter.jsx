@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Activity, ArrowRight, Bell, CalendarDays, Check, Gamepad2, PartyPopper, Star, Trophy, Users, X } from "lucide-react";
+import { Activity, ArrowRight, Bell, Check, Gamepad2, PartyPopper, Star, Trophy, Users, X } from "lucide-react";
 import { supabase } from "./supabase";
 import "./NexusUpgradeCenter.css";
 
@@ -12,8 +12,6 @@ const achievements = [
 
 export default function NexusUpgradeCenter({ games = [], username, userId, stats = {}, activity = [], notifications = [], isAdmin = false, onOpenGame = () => {}, onCreateParty = () => {}, onGo = () => {}, setNotice = () => {} }) {
   const [selectedGame, setSelectedGame] = useState(null);
-  const [events, setEvents] = useState([]);
-  const [eventError, setEventError] = useState("");
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [showcase, setShowcase] = useState(() => {
     try { return JSON.parse(localStorage.getItem("nexus_achievement_showcase_" + (username || "guest")) || "[]"); } catch { return []; }
@@ -23,17 +21,7 @@ export default function NexusUpgradeCenter({ games = [], username, userId, stats
     try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; }
   });
   const [questGame, setQuestGame] = useState(games[0]?.name || "");
-  const [eventBusy, setEventBusy] = useState(false);
-  const [eventDraft, setEventDraft] = useState({ title: "", date: "" });
   const [notificationOpen, setNotificationOpen] = useState(false);
-
-  useEffect(() => {
-    if (!supabase) return;
-    let active = true;
-    supabase.from("nexus_events").select("id,title,event_date").gte("event_date", new Date().toISOString()).order("event_date", { ascending: true }).limit(8)
-      .then(({ data, error }) => { if (!active) return; if (error) setEventError("Events could not load. Check the NEXUS feature database setup."); else setEvents(data || []); });
-    return () => { active = false; };
-  }, []);
 
   useEffect(() => {
     if (!supabase || !userId) return;
@@ -90,18 +78,6 @@ export default function NexusUpgradeCenter({ games = [], username, userId, stats
     completeQuest("play");
     onOpenGame(game);
   };
-  async function publishEvent(e) {
-    e.preventDefault();
-    if (!supabase || !isAdmin) return;
-    setEventBusy(true);
-    const { data, error } = await supabase.from("nexus_events").insert({ user_id: (await supabase.auth.getUser()).data.user?.id, title: eventDraft.title.trim(), event_date: new Date(eventDraft.date).toISOString() }).select("id,title,event_date").single();
-    setEventBusy(false);
-    if (error) { setEventError(error.message); return; }
-    setEvents(rows => [...rows, data].sort((a, b) => new Date(a.event_date) - new Date(b.event_date)));
-    setEventDraft({ title: "", date: "" });
-    setNotice("NEXUS event published.");
-  }
-
   return <section className="upgrade-center">
     <div className="upgrade-heading"><div><span className="eyebrow">NEXUS PLATFORM UPGRADES</span><h2>Your next level starts here</h2><p className="muted">Game discovery, daily goals, social play, and your player legacy.</p></div><span className="upgrade-live"><Activity size={14}/> CONNECTED HUB</span></div>
     <div className="upgrade-grid">
@@ -136,13 +112,6 @@ export default function NexusUpgradeCenter({ games = [], username, userId, stats
         {achievements.map(item => <label className="upgrade-achievement" key={item.id}><input type="checkbox" disabled={!item.test(player)} checked={showcase.includes(item.id)} onChange={e => saveShowcase(e.target.checked ? [...showcase, item.id] : showcase.filter(id => id !== item.id))}/><span><b>{item.title}</b><small>{item.detail}{!item.test(player) ? " · Locked" : ""}</small></span>{item.test(player) && <Check size={15}/>}</label>)}
       </article>
       <article className="upgrade-card">
-        <div className="upgrade-card-head"><div><CalendarDays/><h3>Seasonal events</h3></div></div>
-        <p className="muted">Upcoming events published by NEXUS admins.</p>
-        {events.map(event => <div className="upgrade-event" key={event.id}><b>{event.title}</b><small>{new Date(event.event_date).toLocaleString()}</small></div>)}
-        {!events.length && <p className="upgrade-empty">{eventError || "No upcoming events yet."}</p>}
-        {isAdmin && <form className="upgrade-event-form" onSubmit={publishEvent}><input required maxLength={100} placeholder="Event title" value={eventDraft.title} onChange={e => setEventDraft(v => ({...v,title:e.target.value}))}/><input required type="datetime-local" value={eventDraft.date} onChange={e => setEventDraft(v => ({...v,date:e.target.value}))}/><button className="upgrade-primary" disabled={eventBusy}>{eventBusy ? "Publishing…" : "Publish event"}</button></form>}
-      </article>
-      <article className="upgrade-card">
         <div className="upgrade-card-head"><div><Bell/><h3>Notification center</h3></div><span>{notifications.filter(n => !n.read).length} new</span></div>
         <p className="muted">A quick view of your latest account notifications.</p>
         <button className="upgrade-secondary" onClick={() => setNotificationOpen(v => !v)}>{notificationOpen ? "Hide notifications" : "Show notifications"}</button>
@@ -150,8 +119,11 @@ export default function NexusUpgradeCenter({ games = [], username, userId, stats
       </article>
       <article className="upgrade-card">
         <div className="upgrade-card-head"><div><Star/><h3>Reviews & customization</h3></div></div>
-        <p className="muted">Use the existing review system to rate games, or customize your profile with earned cosmetics.</p>
-        <button className="upgrade-secondary" onClick={() => setNotice("Use the My games tab above for game reviews and the Customize tab for the profile shop.")}>Find reviews & cosmetics <ArrowRight size={14}/></button>
+        <p className="muted">Rate games, update your profile, choose profile attributes, and set a profile background.</p>
+        <div className="upgrade-action-row">
+          <button className="upgrade-secondary" onClick={() => onGo("features")}>Open game reviews <ArrowRight size={14}/></button>
+          <button className="upgrade-primary" onClick={() => onGo("profile")}>Edit your profile <ArrowRight size={14}/></button>
+        </div>
       </article>
       {isAdmin && <article className="upgrade-card">
         <div className="upgrade-card-head"><div><Trophy/><h3>Admin control center</h3></div></div>
