@@ -15,7 +15,7 @@ export default function NexusSiteManager({ games = [], announcements = [], setti
     if (!newGame.name.trim() || (!newGame.externalUrl.trim() && !newGame.htmlCode.trim())) return setError("Add a game name and either a game URL or HTML code.");
     if (draftGames.some(g => g.name.toLowerCase() === newGame.name.trim().toLowerCase())) return setError("A game with that name already exists.");
     setDraftGames(old => [...old, { ...newGame, name:newGame.name.trim(), description:newGame.description.trim(), externalUrl:newGame.externalUrl.trim(), htmlCode:newGame.htmlCode.trim(), openMode:newGame.htmlCode.trim() ? "embed" : newGame.openMode }]);
-    setNewGame({ name:"", type:"Action", players:"Single-player", mode:"single", color:"blue", icon:"🎮", description:"", externalUrl:"", htmlCode:"", openMode:"embed" });
+    setNewGame({ name:"", type:"Action", players:"Single-player", mode:"single", color:"blue", icon:"🎮", imageUrl:"", description:"", externalUrl:"", htmlCode:"", openMode:"embed" });
     setError("");
   }
   function updateGame(index, key, value) { setDraftGames(old => old.map((g,i) => i === index ? { ...g, [key]:value } : g)); }
