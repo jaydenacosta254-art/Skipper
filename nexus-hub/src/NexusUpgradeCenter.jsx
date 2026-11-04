@@ -132,7 +132,7 @@ export default function NexusUpgradeCenter({ games = [], username, userId, stats
       <article className="upgrade-card">
         <div className="upgrade-card-head"><div><Star/><h3>Reviews & customization</h3></div></div>
         <p className="muted">Use the existing review system to rate games, or customize your profile with earned cosmetics.</p>
-        <button className="upgrade-secondary" onClick={() => onGo("features")}>Open reviews & cosmetics <ArrowRight size={14}/></button>
+        <button className="upgrade-secondary" onClick={() => setNotice("Use the My games tab above for game reviews and the Customize tab for the profile shop.")}>Find reviews & cosmetics <ArrowRight size={14}/></button>
       </article>
       {isAdmin && <article className="upgrade-card">
         <div className="upgrade-card-head"><div><Trophy/><h3>Admin control center</h3></div></div>
