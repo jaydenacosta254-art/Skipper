@@ -549,14 +549,14 @@ export default function App() {
     setNotice(error ? error.message : "Report submitted to moderators.");
   }
   async function submitGameSuggestion(payload) {
-    if (!session?.user || !supabase) return setNotice("Sign in to suggest a game.");
+    if (!session?.user || !supabase) { setNotice("Sign in to suggest a game."); return false; }
     const { error } = await supabase.from("game_submissions").insert({ user_id: session.user.id, name: payload.name.trim(), url: payload.url.trim(), description: payload.description.trim(), category: payload.category || "Other" });
-    setNotice(error ? "Game suggestion could not be sent: "+error.message : "Game suggestion sent to the NEXUS admins.");
+    if (error) { setNotice("Game suggestion could not be sent: "+error.message); return false; }\n    setNotice("Game suggestion sent to the NEXUS admins."); return true;
   }
   async function submitBugReport(payload) {
-    if (!session?.user || !supabase) return setNotice("Sign in to submit a bug report.");
+    if (!session?.user || !supabase) { setNotice("Sign in to submit a bug report."); return false; }
     const { error } = await supabase.from("nexus_bug_reports").insert({ reporter_id: session.user.id, username, title: payload.title.trim(), description: payload.description.trim(), page: page, severity: payload.severity || "normal" });
-    setNotice(error ? "Bug report could not be sent: "+error.message : "Bug report submitted. Thank you for helping improve NEXUS.");
+    if (error) { setNotice("Bug report could not be sent: "+error.message); return false; }\n    setNotice("Bug report submitted. Thank you for helping improve NEXUS."); return true;
   }
   async function reportUser(targetName) {
     if (!session?.user || !supabase) return setNotice("Sign in to report a member.");
@@ -841,14 +841,14 @@ function RewardsPage({ username, stats, activity, leaderboard, loading, onClaimD
 function GameSuggestionPage({ onSubmit }) {
  const [form,setForm]=useState({name:"",url:"",category:"Other",description:""});
  const [busy,setBusy]=useState(false);
- async function send(e){e.preventDefault();setBusy(true);try{await onSubmit(form);setForm({name:"",url:"",category:"Other",description:""});}finally{setBusy(false);}}
+ async function send(e){e.preventDefault();setBusy(true);try{const ok=await onSubmit(form);if(ok)setForm({name:"",url:"",category:"Other",description:""});}finally{setBusy(false);}}
  return <div className="page-content-inner"><div className="page-title-row"><div><div className="eyebrow">COMMUNITY IDEAS</div><h1>Suggest a game</h1><p className="muted">Send a game for the NEXUS admins to review. Approved games can be added to the catalog.</p></div></div><section className="social-panel"><form className="site-manager-add" onSubmit={send}><label>Game name<input required minLength={2} maxLength={60} value={form.name} onChange={e=>setForm(v=>({...v,name:e.target.value}))} placeholder="Game title"/></label><label>Game URL<input required type="url" value={form.url} onChange={e=>setForm(v=>({...v,url:e.target.value}))} placeholder="https://..."/></label><label>Category<select value={form.category} onChange={e=>setForm(v=>({...v,category:e.target.value}))}><option>Other</option><option>Action</option><option>Adventure</option><option>Arcade</option><option>Puzzle</option><option>Sports</option><option>Racing</option><option>Strategy</option><option>Simulation</option></select></label><label>Why should it be added?<textarea maxLength={500} rows={4} value={form.description} onChange={e=>setForm(v=>({...v,description:e.target.value}))} placeholder="Tell us about the game..."/></label><button className="primary-btn" disabled={busy}>{busy?"Sending...":"Submit game suggestion"}</button></form></section></div>;
 }
 
 function BugReportPage({ onSubmit }) {
  const [form,setForm]=useState({title:"",description:"",severity:"normal"});
  const [busy,setBusy]=useState(false);
- async function send(e){e.preventDefault();setBusy(true);try{await onSubmit(form);setForm({title:"",description:"",severity:"normal"});}finally{setBusy(false);}}
+ async function send(e){e.preventDefault();setBusy(true);try{const ok=await onSubmit(form);if(ok)setForm({title:"",description:"",severity:"normal"});}finally{setBusy(false);}}
  return <div className="page-content-inner"><div className="page-title-row"><div><div className="eyebrow">HELP IMPROVE NEXUS</div><h1>Report a bug</h1><p className="muted">Describe what went wrong and where you saw it. Please don't include private information.</p></div></div><section className="social-panel"><form className="site-manager-add" onSubmit={send}><label>Short title<input required minLength={3} maxLength={100} value={form.title} onChange={e=>setForm(v=>({...v,title:e.target.value}))} placeholder="Example: Game stays on a black screen"/></label><label>What happened?<textarea required minLength={8} maxLength={2000} rows={6} value={form.description} onChange={e=>setForm(v=>({...v,description:e.target.value}))} placeholder="What did you click, what did you expect, and what happened instead?"/></label><label>How serious is it?<select value={form.severity} onChange={e=>setForm(v=>({...v,severity:e.target.value}))}><option value="normal">Normal</option><option value="major">Major — feature is unusable</option><option value="minor">Minor — small visual or usability issue</option></select></label><button className="primary-btn" disabled={busy}>{busy?"Sending...":"Submit bug report"}</button></form></section></div>;
 }
 
