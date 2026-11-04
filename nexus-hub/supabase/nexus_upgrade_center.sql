@@ -79,3 +79,28 @@ drop policy if exists "Players manage their cosmetic inventory" on public.nexus_
 create policy "Players manage their cosmetic inventory"
   on public.nexus_cosmetic_inventory for all to authenticated
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+
+-- Expanded event management and member profile customization.
+alter table public.nexus_events
+  add column if not exists event_type text not null default 'seasonal'
+    check (event_type in ('current', 'seasonal')),
+  add column if not exists end_date timestamptz;
+
+create index if not exists nexus_events_type_date_idx
+  on public.nexus_events(event_type, event_date);
+
+drop policy if exists "Admins update events" on public.nexus_events;
+create policy "Admins update events" on public.nexus_events
+  for update to authenticated
+  using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'))
+  with check (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'));
+
+drop policy if exists "Admins delete events" on public.nexus_events;
+create policy "Admins delete events" on public.nexus_events
+  for delete to authenticated
+  using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'));
+
+alter table public.profiles
+  add column if not exists profile_attributes text[] not null default '{}',
+  add column if not exists profile_background text not null default 'violet';
