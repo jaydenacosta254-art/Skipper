@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Plus, Save, Trash2, Gamepad2, Megaphone, Settings, X } from "lucide-react";
 
-export default function NexusSiteManager({ games = [], announcements = [], settings = {}, onSave, busy = false }) {
+export default function NexusSiteManager({ games = [], announcements = [], settings = {}, onSave, onUploadImage, busy = false }) {
   const [draftGames, setDraftGames] = useState(games);
   const [draftAnnouncements, setDraftAnnouncements] = useState(announcements);
   const [draftSettings, setDraftSettings] = useState({ allowGameSubmissions: true, showOnlineStats: true, ...settings });
-  const [newGame, setNewGame] = useState({ name:"", type:"Action", players:"Single-player", mode:"single", color:"blue", icon:"🎮", description:"", externalUrl:"", htmlCode:"", openMode:"embed" });
+  const [newGame, setNewGame] = useState({ name:"", type:"Action", players:"Single-player", mode:"single", color:"blue", icon:"🎮", imageUrl:"", description:"", externalUrl:"", htmlCode:"", openMode:"embed" });
   const [announcement, setAnnouncement] = useState("");
   const [error, setError] = useState("");
   useEffect(() => { setDraftGames(games); setDraftAnnouncements(announcements); setDraftSettings({ allowGameSubmissions:true, showOnlineStats:true, ...settings }); }, [games, announcements, settings]);
@@ -19,6 +19,18 @@ export default function NexusSiteManager({ games = [], announcements = [], setti
     setError("");
   }
   function updateGame(index, key, value) { setDraftGames(old => old.map((g,i) => i === index ? { ...g, [key]:value } : g)); }
+  async function uploadImage(file, index = null) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return setError("Choose an image file.");
+    if (file.size > 5 * 1024 * 1024) return setError("Game images must be 5 MB or smaller.");
+    if (!onUploadImage) return setError("Image uploads are not available right now.");
+    try {
+      setError("");
+      const url = await onUploadImage(file);
+      if (index === null) setNewGame(old => ({ ...old, imageUrl:url }));
+      else updateGame(index, "imageUrl", url);
+    } catch (e) { setError(e.message || "Could not upload the game image."); }
+  }
   function addAnnouncement(e) {
     e.preventDefault();
     if (!announcement.trim()) return;
@@ -36,7 +48,8 @@ export default function NexusSiteManager({ games = [], announcements = [], setti
     <section className="social-panel"><h2><Gamepad2 size={18}/> Game catalog ({draftGames.length})</h2><p className="muted">Add, edit, or remove games shown in the Games and home sections.</p>
       {draftGames.map((g,i)=><div className="site-manager-game" key={g.name+"-"+i}>
         <input aria-label="Game name" value={g.name} onChange={e=>updateGame(i,"name",e.target.value)} placeholder="Game name"/>
-        <input aria-label="Icon" value={g.icon||"🎮"} onChange={e=>updateGame(i,"icon",e.target.value)} placeholder="Icon"/>
+        <div className="site-manager-image-field"><label>Game image<input type="file" accept="image/*" onChange={e=>uploadImage(e.target.files?.[0],i)}/></label>{g.imageUrl ? <img src={g.imageUrl} alt={g.name+" icon preview"}/> : <span className="site-manager-image-fallback">{g.icon||"🎮"}</span>}</div>
+        <input aria-label="Icon emoji fallback" value={g.icon||"🎮"} onChange={e=>updateGame(i,"icon",e.target.value)} placeholder="Fallback emoji"/>
         <select aria-label="Category" value={g.type||"Action"} onChange={e=>updateGame(i,"type",e.target.value)}><option value="Action">Action</option><option value="Adventure">Adventure</option><option value="Arcade">Arcade</option><option value="Puzzle">Puzzle</option><option value="Sports">Sports</option><option value="Racing">Racing</option><option value="Strategy">Strategy</option><option value="Simulation">Simulation</option><option value="Other">Other</option></select>
         <select value={g.mode||"single"} onChange={e=>updateGame(i,"mode",e.target.value)}><option value="single">Single-player</option><option value="multiplayer">Multiplayer</option><option value="external-multiplayer">External multiplayer</option><option value="coming">Coming soon</option></select>
         <input aria-label="Player label" value={g.players||""} onChange={e=>updateGame(i,"players",e.target.value)} placeholder="Player label"/>
@@ -48,7 +61,8 @@ export default function NexusSiteManager({ games = [], announcements = [], setti
       </div>)}
       <form className="site-manager-add" onSubmit={addGame}><h3><Plus size={16}/> Add a game</h3><div className="site-manager-fields">
         <input required placeholder="Game name" value={newGame.name} onChange={e=>setNewGame({...newGame,name:e.target.value})}/>
-        <input placeholder="Icon (emoji)" value={newGame.icon} onChange={e=>setNewGame({...newGame,icon:e.target.value})}/>
+        <div className="site-manager-image-field"><label>Upload game image<input type="file" accept="image/*" onChange={e=>uploadImage(e.target.files?.[0])}/></label>{newGame.imageUrl ? <img src={newGame.imageUrl} alt="New game image preview"/> : <span className="site-manager-image-fallback">{newGame.icon||"🎮"}</span>}</div>
+        <input placeholder="Fallback icon (emoji)" value={newGame.icon} onChange={e=>setNewGame({...newGame,icon:e.target.value})}/>
         <select aria-label="Game category" value={newGame.type} onChange={e=>setNewGame({...newGame,type:e.target.value})}><option value="Action">Action</option><option value="Adventure">Adventure</option><option value="Arcade">Arcade</option><option value="Puzzle">Puzzle</option><option value="Sports">Sports</option><option value="Racing">Racing</option><option value="Strategy">Strategy</option><option value="Simulation">Simulation</option><option value="Other">Other</option></select>
         <select aria-label="Player type" value={newGame.mode} onChange={e=>setNewGame({...newGame,mode:e.target.value,players:e.target.value==="single"?"Single-player":e.target.value==="multiplayer"?"Multiplayer":e.target.value==="external-multiplayer"?"Online multiplayer":"Coming soon"})}><option value="single">Single-player</option><option value="multiplayer">Multiplayer</option><option value="external-multiplayer">External multiplayer</option><option value="coming">Coming soon</option></select>
         
