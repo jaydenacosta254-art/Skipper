@@ -105,6 +105,19 @@ const starterGames = [
     allowSameOrigin: true
   },
   {
+    name: "Web Dashers",
+    type: "Arcade",
+    players: "Single-player",
+    mode: "single",
+    color: "green",
+    icon: "🟩",
+    imageUrl: "https://web-dashers.github.io/wd_assets/thumbnail_1024.png",
+    description: "Play the fan-made Geometry Dash browser mod, create levels, and explore online levels.",
+    externalUrl: "/Skipper/webdashers/index.html",
+    openMode: "embed",
+    allowSameOrigin: true
+  },
+  {
     name: "Basket Bros",
     type: "Sports",
     players: "1v1 · Online / local",
@@ -203,10 +216,15 @@ export default function App() {
       if (data) {
         if (Array.isArray(data.games) && data.games.length) setSiteGames(() => {
           const missingStarterGames = starterGames.filter(game =>
-            ["basket random", "escape road 3", "moto x3m"].includes(game.name.toLowerCase()) &&
+            ["basket random", "escape road 3", "moto x3m", "web dashers"].includes(game.name.toLowerCase()) &&
             !data.games.some(savedGame => savedGame.name?.toLowerCase() === game.name.toLowerCase())
           );
-          return [...data.games.map(game => game.name?.toLowerCase() === "chicken royale" ? { ...game, openMode: "new-tab" } : game), ...missingStarterGames];
+          return [...data.games.map(game => {
+            const name = game.name?.toLowerCase();
+            if (name === "chicken royale") return { ...game, openMode: "new-tab" };
+            if (name === "web dashers") return { ...game, externalUrl: "/Skipper/webdashers/index.html", openUrl: "", url: "", htmlCode: "", openMode: "embed", allowSameOrigin: true };
+            return game;
+          }), ...missingStarterGames];
         });
         if (Array.isArray(data.announcements)) setSiteAnnouncements(data.announcements);
         if (data.settings && typeof data.settings === "object") setSiteSettings(old => ({ ...old, ...data.settings }));
