@@ -10,10 +10,11 @@ const achievements = [
   { id: "collector", title: "Collector", detail: "Favorite 3 games", test: s => s.favorites >= 3 }
 ];
 
-export default function NexusUpgradeCenter({ games = [], username, stats = {}, activity = [], notifications = [], isAdmin = false, onOpenGame = () => {}, onCreateParty = () => {}, onGo = () => {}, setNotice = () => {} }) {
+export default function NexusUpgradeCenter({ games = [], username, userId, stats = {}, activity = [], notifications = [], isAdmin = false, onOpenGame = () => {}, onCreateParty = () => {}, onGo = () => {}, setNotice = () => {} }) {
   const [selectedGame, setSelectedGame] = useState(null);
   const [events, setEvents] = useState([]);
   const [eventError, setEventError] = useState("");
+  const [favoriteCount, setFavoriteCount] = useState(0);
   const [showcase, setShowcase] = useState(() => {
     try { return JSON.parse(localStorage.getItem("nexus_achievement_showcase_" + (username || "guest")) || "[]"); } catch { return []; }
   });
@@ -34,12 +35,30 @@ export default function NexusUpgradeCenter({ games = [], username, stats = {}, a
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    if (!supabase || !userId) return;
+    let active = true;
+    Promise.all([
+      supabase.from("nexus_favorites").select("game_name").eq("user_id", userId),
+      supabase.from("nexus_achievement_showcase").select("achievement_ids").eq("user_id", userId).maybeSingle()
+    ]).then(([favoritesResult, showcaseResult]) => {
+      if (!active) return;
+      setFavoriteCount((favoritesResult.data || []).length);
+      if (showcaseResult.data?.achievement_ids) {
+        setShowcase(showcaseResult.data.achievement_ids);
+        localStorage.setItem("nexus_achievement_showcase_" + (username || "guest"), JSON.stringify(showcaseResult.data.achievement_ids));
+      }
+    });
+    return () => { active = false; };
+  }, [userId, username]);
+
   const gameNames = useMemo(() => games.map(g => typeof g === "string" ? g : g?.name).filter(Boolean), [games]);
-  const player = { games_played: Number(stats.games_played || 0), level: Number(stats.level || 1), favorites: Number(stats.favorites || 0) };
+  const player = { games_played: Number(stats.games_played || 0), level: Number(stats.level || 1), favorites: Number(favoriteCount || stats.favorites || 0) };
   const unlocked = achievements.filter(a => a.test(player));
   const saveShowcase = next => {
     setShowcase(next);
     localStorage.setItem("nexus_achievement_showcase_" + (username || "guest"), JSON.stringify(next));
+    if (supabase && userId) supabase.from("nexus_achievement_showcase").upsert({ user_id: userId, achievement_ids: next, updated_at: new Date().toISOString() }, { onConflict: "user_id" }).then(({ error }) => { if (error) setNotice("Achievement showcase could not sync. Run the NEXUS upgrade SQL setup."); });
   };
   const completeQuest = id => {
     const next = [...new Set([...questDone, id])];
