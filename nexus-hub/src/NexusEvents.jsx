@@ -3,6 +3,37 @@ import { CalendarDays, Clock3, Plus, Trash2 } from "lucide-react";
 import { supabase } from "./supabase";
 import "./NexusEvents.css";
 
+async function loadNexusEvents(limit = 50) {
+  const modern = await supabase.from("nexus_events")
+    .select("id,title,event_date,end_date,event_type")
+    .order("event_date", { ascending: true })
+    .limit(limit);
+  if (!modern.error) return { data: modern.data || [], error: null, legacy: false };
+
+  // Keep the public board readable when an older database is missing the
+  // event classification columns. The admin form will still request migration.
+  const missingNewColumn = modern.error.code === "42703" ||
+    modern.error.code === "PGRST204" ||
+    /event_type|end_date|schema cache|column .* does not exist/i.test(modern.error.message || "");
+  if (!missingNewColumn) return { data: [], error: modern.error, legacy: false };
+
+  const legacy = await supabase.from("nexus_events")
+    .select("id,title,event_date")
+    .order("event_date", { ascending: true })
+    .limit(limit);
+  if (legacy.error) return { data: [], error: legacy.error, legacy: true };
+  return {
+    data: (legacy.data || []).map(event => ({ ...event, event_type: "seasonal", end_date: null })),
+    error: null,
+    legacy: true
+  };
+}
+
+function readableError(error) {
+  if (!error) return "Unknown database error.";
+  return [error.message, error.details, error.hint].filter(Boolean).join(" · ");
+}
+
 function eventStatus(event, now = Date.now()) {
   const start = new Date(event.event_date).getTime();
   const end = event.end_date ? new Date(event.end_date).getTime() : null;
@@ -30,17 +61,20 @@ export function SeasonalEventsPage() {
   const [tab, setTab] = useState("current");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [legacySchema, setLegacySchema] = useState(false);
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
     let active = true;
-    supabase.from("nexus_events").select("id,title,event_date,end_date,event_type").order("event_date", { ascending: true }).limit(50)
-      .then(({ data, error: queryError }) => {
-        if (!active) return;
-        if (queryError) setError("Events could not load. Please check the NEXUS upgrade database setup.");
-        else setEvents(data || []);
-        setLoading(false);
-      });
+    loadNexusEvents(50).then(({ data, error: queryError, legacy }) => {
+      if (!active) return;
+      if (queryError) setError("Events database error: " + readableError(queryError));
+      else {
+        setEvents(data || []);
+        setLegacySchema(Boolean(legacy));
+      }
+      setLoading(false);
+    });
     return () => { active = false; };
   }, []);
 
@@ -57,9 +91,9 @@ export function SeasonalEventsPage() {
       <button className={tab === "current" ? "active" : ""} onClick={() => setTab("current")}>Current events <span>{currentEvents.length}</span></button>
       <button className={tab === "seasonal" ? "active" : ""} onClick={() => setTab("seasonal")}>Seasonal events <span>{seasonalEvents.length}</span></button>
     </div>
-    {loading ? <div className="empty-state"><p>Loading events…</p></div> : error ? <div className="form-error">{error}</div> : visible.length
+    {loading ? <div className="empty-state"><p>Loading events…</p></div> : error ? <div className="form-error">{error}</div> : <>{legacySchema && <div className="form-error">Your events table is using its older format. Run the latest event database update to enable Current and Seasonal categories.</div>}{visible.length
       ? <div className="nexus-event-grid">{visible.map(event => <EventCard event={event} key={event.id}/>)}</div>
-      : <div className="nexus-event-empty"><CalendarDays size={28}/><h2>No {tab === "current" ? "current" : "seasonal"} events yet</h2><p>Check back here for new NEXUS events.</p></div>}
+      : <div className="nexus-event-empty"><CalendarDays size={28}/><h2>No {tab === "current" ? "current" : "seasonal"} events yet</h2><p>Check back here for new NEXUS events.</p></div>}</>}
   </div>;
 }
 
@@ -71,9 +105,12 @@ export function AdminSeasonalEvents() {
 
   async function loadEvents() {
     if (!supabase) return;
-    const { data, error: queryError } = await supabase.from("nexus_events").select("id,title,event_date,end_date,event_type").order("event_date", { ascending: true }).limit(100);
-    if (queryError) setError("Events could not load. Run the latest NEXUS SQL setup.");
-    else { setEvents(data || []); setError(""); }
+    const { data, error: queryError, legacy } = await loadNexusEvents(100);
+    if (queryError) setError("Events database error: " + readableError(queryError));
+    else {
+      setEvents(data || []);
+      setError(legacy ? "The database is missing event_type/end_date. Run the latest NEXUS event SQL update before publishing events." : "");
+    }
   }
   useEffect(() => { loadEvents(); }, []);
 
@@ -94,7 +131,7 @@ export function AdminSeasonalEvents() {
       event_type: draft.type
     }).select("id,title,event_date,end_date,event_type").single();
     setBusy(false);
-    if (insertError) { setError(insertError.message); return; }
+    if (insertError) { setError("Event could not be published: " + readableError(insertError) + ". Run the latest NEXUS event SQL update if event_type or end_date is missing."); return; }
     setEvents(rows => [...rows, data].sort((a, b) => new Date(a.event_date) - new Date(b.event_date)));
     setDraft({ title: "", type: "seasonal", start: "", end: "" });
   }
