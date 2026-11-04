@@ -1,3 +1,41 @@
+-- Ensure the upgrade center's shared event and favorite data exists even
+-- when the older expansion migration has not been applied yet.
+create table if not exists public.nexus_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null check (char_length(title) between 1 and 100),
+  event_date timestamptz not null,
+  created_at timestamptz not null default now()
+);
+alter table public.nexus_events enable row level security;
+drop policy if exists "Community can read events" on public.nexus_events;
+create policy "Community can read events" on public.nexus_events
+  for select to anon, authenticated using (true);
+drop policy if exists "Admins create events" on public.nexus_events;
+create policy "Admins create events" on public.nexus_events
+  for insert to authenticated with check (
+    auth.uid() = user_id and exists (
+      select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
+    )
+  );
+
+create table if not exists public.nexus_favorites (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  game_name text not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, game_name)
+);
+alter table public.nexus_favorites enable row level security;
+drop policy if exists "Users read their own favorites" on public.nexus_favorites;
+create policy "Users read their own favorites" on public.nexus_favorites
+  for select to authenticated using (auth.uid() = user_id);
+drop policy if exists "Users add their own favorites" on public.nexus_favorites;
+create policy "Users add their own favorites" on public.nexus_favorites
+  for insert to authenticated with check (auth.uid() = user_id);
+drop policy if exists "Users remove their own favorites" on public.nexus_favorites;
+create policy "Users remove their own favorites" on public.nexus_favorites
+  for delete to authenticated using (auth.uid() = user_id);
+
 -- NEXUS upgrade center support. Safe to run more than once.
 -- The existing app already provides reviews, notifications, private lobbies,
 -- events, cosmetics, and admin moderation. This migration adds durable
