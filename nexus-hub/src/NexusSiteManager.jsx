@@ -5,7 +5,7 @@ export default function NexusSiteManager({ games = [], announcements = [], setti
   const [draftGames, setDraftGames] = useState(games);
   const [draftAnnouncements, setDraftAnnouncements] = useState(announcements);
   const [draftSettings, setDraftSettings] = useState({ allowGameSubmissions: true, showOnlineStats: true, ...settings });
-  const [newGame, setNewGame] = useState({ name:"", type:"Action", players:"Single-player", mode:"single", color:"blue", icon:"🎮", description:"", externalUrl:"" });
+  const [newGame, setNewGame] = useState({ name:"", type:"Action", players:"Single-player", mode:"single", color:"blue", icon:"🎮", description:"", externalUrl:"", openMode:"embed" });
   const [announcement, setAnnouncement] = useState("");
   const [error, setError] = useState("");
   useEffect(() => { setDraftGames(games); setDraftAnnouncements(announcements); setDraftSettings({ allowGameSubmissions:true, showOnlineStats:true, ...settings }); }, [games, announcements, settings]);
@@ -15,7 +15,7 @@ export default function NexusSiteManager({ games = [], announcements = [], setti
     if (!newGame.name.trim() || !newGame.externalUrl.trim()) return setError("Add a game name and game URL.");
     if (draftGames.some(g => g.name.toLowerCase() === newGame.name.trim().toLowerCase())) return setError("A game with that name already exists.");
     setDraftGames(old => [...old, { ...newGame, name:newGame.name.trim(), description:newGame.description.trim(), externalUrl:newGame.externalUrl.trim() }]);
-    setNewGame({ name:"", type:"Action", players:"Single-player", mode:"single", color:"blue", icon:"🎮", description:"", externalUrl:"" });
+    setNewGame({ name:"", type:"Action", players:"Single-player", mode:"single", color:"blue", icon:"🎮", description:"", externalUrl:"", openMode:"embed" });
     setError("");
   }
   function updateGame(index, key, value) { setDraftGames(old => old.map((g,i) => i === index ? { ...g, [key]:value } : g)); }
@@ -41,6 +41,7 @@ export default function NexusSiteManager({ games = [], announcements = [], setti
         <select value={g.mode||"single"} onChange={e=>updateGame(i,"mode",e.target.value)}><option value="single">Single-player</option><option value="multiplayer">Multiplayer</option><option value="external-multiplayer">External multiplayer</option><option value="coming">Coming soon</option></select>
         <input aria-label="Player label" value={g.players||""} onChange={e=>updateGame(i,"players",e.target.value)} placeholder="Player label"/>
         <input aria-label="Game URL" value={g.externalUrl||g.openUrl||""} onChange={e=>updateGame(i,"externalUrl",e.target.value)} placeholder="Game URL"/>
+        <select aria-label="Game opening method" value={g.openMode||(g.openUrl&&!g.externalUrl?"new-tab":"embed")} onChange={e=>updateGame(i,"openMode",e.target.value)}><option value="embed">Embed inside NEXUS</option><option value="new-tab">Open in a new tab</option></select>
         <input className="site-manager-description" aria-label="Description" value={g.description||""} onChange={e=>updateGame(i,"description",e.target.value)} placeholder="Description"/>
         <button className="quiet-btn" onClick={()=>setDraftGames(old=>old.filter((_,n)=>n!==i))} aria-label={"Remove "+g.name}><Trash2 size={15}/> Remove</button>
       </div>)}
@@ -51,6 +52,7 @@ export default function NexusSiteManager({ games = [], announcements = [], setti
         <select value={newGame.mode} onChange={e=>setNewGame({...newGame,mode:e.target.value})}><option value="single">Single-player</option><option value="multiplayer">Multiplayer</option><option value="external-multiplayer">External multiplayer</option><option value="coming">Coming soon</option></select>
         <input placeholder="Players label" value={newGame.players} onChange={e=>setNewGame({...newGame,players:e.target.value})}/>
         <input required placeholder="Game URL" value={newGame.externalUrl} onChange={e=>setNewGame({...newGame,externalUrl:e.target.value})}/>
+        <select aria-label="How the game opens" value={newGame.openMode} onChange={e=>setNewGame({...newGame,openMode:e.target.value})}><option value="embed">Embed inside NEXUS</option><option value="new-tab">Open in a new tab</option></select>
         <input className="site-manager-description" placeholder="Description" value={newGame.description} onChange={e=>setNewGame({...newGame,description:e.target.value})}/>
       </div><button className="secondary-btn"><Plus size={15}/> Add game</button></form>
     </section>
