@@ -66,6 +66,19 @@ const starterGames = [
     externalUrl: "https://openguessr.com/"
   },
   {
+    name: "Escape Road 3",
+    type: "Racing",
+    players: "Single-player",
+    mode: "single",
+    color: "orange",
+    icon: "🚗",
+    imageUrl: "https://images.twoplayergames.org/files/games/other/escape-road-3-v2.jpg?auto=format&w=200",
+    description: "Escape the police, dodge traffic, and see how long you can stay on the road in Escape Road 3.",
+    externalUrl: "https://gamea.azgame.io/escape-road-3/",
+    openMode: "embed",
+    allowSameOrigin: true
+  },
+  {
     name: "Basket Random",
     type: "Sports",
     players: "1v1 · Local multiplayer",
@@ -173,7 +186,13 @@ export default function App() {
     supabase.from("nexus_site_config").select("games, announcements, settings").eq("id", "main").maybeSingle().then(({ data, error }) => {
       if (error) { console.warn("NEXUS site config is not available yet:", error.message); return; }
       if (data) {
-        if (Array.isArray(data.games) && data.games.length) setSiteGames(current => data.games.some(game => game.name?.toLowerCase() === "basket random") ? data.games : [...data.games, starterGames.find(game => game.name === "Basket Random")]);
+        if (Array.isArray(data.games) && data.games.length) setSiteGames(() => {
+          const missingStarterGames = starterGames.filter(game =>
+            ["basket random", "escape road 3"].includes(game.name.toLowerCase()) &&
+            !data.games.some(savedGame => savedGame.name?.toLowerCase() === game.name.toLowerCase())
+          );
+          return [...data.games, ...missingStarterGames];
+        });
         if (Array.isArray(data.announcements)) setSiteAnnouncements(data.announcements);
         if (data.settings && typeof data.settings === "object") setSiteSettings(old => ({ ...old, ...data.settings }));
       }
