@@ -665,7 +665,21 @@ function HomePage({ username, online, rooms, setPage, setNotice, games = starter
 }
 function StatCard({ icon: Icon, label, value, note, tone }) { return <div className="stat-card"><div className={`stat-icon ${tone}`}><Icon size={18}/></div><div className="stat-label">{label}</div><div className="stat-value">{value}</div><div className="stat-note"><span/> {note}</div></div>; }
 const gameIconMap = { "Party Arena": PartyPopper, "Neon Racers": CarFront, "Retro Bowl": Goal, "Basket Bros": Trophy, "Trivia Clash": Brain, "Puzzle Pop": Puzzle, "Pixel Quest": Compass, "Arcade Rush": Joystick };
-function GameCard({ game, onClick }) { const Icon=gameIconMap[game.name]||Gamepad2; return <button className={`game-card ${game.color}`} onClick={onClick}><div className="game-art"><span className="game-art-icon">{game.imageUrl ? <img className="game-art-uploaded-image" src={game.imageUrl} alt={game.name+" artwork"}/> : <Icon size={34} strokeWidth={1.8}/>}</span><div className="art-shine"/></div><div className="game-info"><div className="game-type">{game.type} <span>•</span> {game.players}</div><h3>{game.name}</h3><p>{game.description}</p><div className="game-play">View details <ArrowRight size={15}/></div></div></button>; }
+function gameThumbnail(game) {
+  const palettes = {
+    Sports: ["#174b46", "#38a68a"], Racing: ["#542d28", "#e4774f"],
+    Adventure: ["#263d68", "#5794c7"], Puzzle: ["#46316e", "#9b79dc"],
+    Arcade: ["#512e62", "#d36ca8"], Strategy: ["#35445e", "#8199bd"],
+    Simulation: ["#315343", "#76a985"], Action: ["#4d3030", "#c66a5b"]
+  };
+  const [dark, bright] = palettes[game.type] || ["#30394d", "#8294b7"];
+  const escapeXml = value => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&apos;" }[ch]));
+  const icon = escapeXml(game.icon || "🎮");
+  const name = escapeXml(game.name || "NEXUS GAME");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${dark}"/><stop offset="1" stop-color="#111827"/></linearGradient><radialGradient id="glow"><stop stop-color="${bright}" stop-opacity=".9"/><stop offset="1" stop-color="${bright}" stop-opacity="0"/></radialGradient></defs><rect width="640" height="360" fill="url(#bg)"/><circle cx="470" cy="115" r="210" fill="url(#glow)"/><path d="M0 285 Q160 210 320 290 T640 250 V360 H0Z" fill="#080d18" opacity=".45"/><circle cx="320" cy="145" r="94" fill="#ffffff" opacity=".09"/><text x="320" y="188" text-anchor="middle" font-size="112" font-family="Arial,sans-serif">${icon}</text><text x="320" y="315" text-anchor="middle" fill="#ffffff" font-size="34" font-weight="700" font-family="Arial,sans-serif">${name}</text><path d="M36 36h568v288H36z" fill="none" stroke="#ffffff" stroke-opacity=".18" stroke-width="3" rx="20"/></svg>`;
+  return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+}
+function GameCard({ game, onClick }) { const Icon=gameIconMap[game.name]||Gamepad2; const artwork=game.imageUrl||gameThumbnail(game); return <button className={`game-card ${game.color}`} onClick={onClick}><div className="game-art"><span className="game-art-icon"><img className="game-art-uploaded-image" src={artwork} alt={game.name+" artwork"}/></span><div className="art-shine"/></div><div className="game-info"><div className="game-type">{game.type} <span>•</span> {game.players}</div><h3>{game.name}</h3><p>{game.description}</p><div className="game-play">View details <ArrowRight size={15}/></div></div></button>; }
 
 function GamesPage({ games = starterGames, allowGameSubmissions = true, rooms, myLobby, lobbyCode, setLobbyCode, lobbyError, createLobby, joinLobby, leaveLobby, startLobby, session, socket, username, recordGame, gameToOpen, onGameOpenHandled }) {
   const [category,setCategory]=useState("All"),[search,setSearch]=useState(""),[recent,setRecent]=useState(()=>{try{return JSON.parse(localStorage.getItem("nexus_recent_games")||"[]")}catch{return[]}}),[selected,setSelected]=useState(null),[embeddedGame,setEmbeddedGame]=useState(null),[activeMini,setActiveMini]=useState(null),[activeGame,setActiveGame]=useState(null),[gameState,setGameState]=useState(null),[answer,setAnswer]=useState(""),[submitOpen,setSubmitOpen]=useState(false),[submission,setSubmission]=useState({name:"",url:"",description:"",category:"Action"}),[submitMessage,setSubmitMessage]=useState(""),[leaderboard,setLeaderboard]=useState([]);
