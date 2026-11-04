@@ -66,6 +66,18 @@ const starterGames = [
     externalUrl: "https://openguessr.com/"
   },
   {
+    name: "Basket Random",
+    type: "Sports",
+    players: "1v1 · Local multiplayer",
+    mode: "single",
+    color: "orange",
+    icon: "🏀",
+    imageUrl: "https://images.twoplayergames.org/files/games/other/Basket_Random/basket-random.jpg?auto=format&w=200",
+    description: "Play chaotic physics-based basketball matches in Basket Random.",
+    externalUrl: "https://files.twoplayergames.org/files/games/other/Basket_Random/index.html",
+    openMode: "embed"
+  },
+  {
     name: "Basket Bros",
     type: "Sports",
     players: "1v1 · Online / local",
@@ -160,7 +172,7 @@ export default function App() {
     supabase.from("nexus_site_config").select("games, announcements, settings").eq("id", "main").maybeSingle().then(({ data, error }) => {
       if (error) { console.warn("NEXUS site config is not available yet:", error.message); return; }
       if (data) {
-        if (Array.isArray(data.games) && data.games.length) setSiteGames(data.games);
+        if (Array.isArray(data.games) && data.games.length) setSiteGames(current => data.games.some(game => game.name?.toLowerCase() === "basket random") ? data.games : [...data.games, starterGames.find(game => game.name === "Basket Random")]);
         if (Array.isArray(data.announcements)) setSiteAnnouncements(data.announcements);
         if (data.settings && typeof data.settings === "object") setSiteSettings(old => ({ ...old, ...data.settings }));
       }
