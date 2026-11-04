@@ -364,3 +364,23 @@ button,input,textarea,select{max-width:100%}
   .help-card{display:none}
   .sidebar-bottom{padding-top:6px}
 }
+
+/* NEXUS admin site manager */
+.site-manager{display:grid;gap:18px;margin-top:24px}
+.site-manager .page-title-row{align-items:center}
+.site-manager .social-panel h2{display:flex;align-items:center;gap:9px}
+.site-manager-game{display:grid;grid-template-columns:1.1fr .45fr .8fr .9fr .8fr 1.4fr 1.4fr auto;gap:8px;align-items:center;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.site-manager input,.site-manager select{min-width:0;width:100%;background:#111827;color:#edf0ff;border:1px solid #30394f;border-radius:9px;padding:10px;font:inherit}
+.site-manager input::placeholder{color:#8992a9}
+.site-manager-add{display:grid;gap:12px;margin-top:16px;padding:14px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:12px}
+.site-manager-add h3{display:flex;align-items:center;gap:8px;margin:0}
+.site-manager-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.site-manager-fields .site-manager-description{grid-column:span 2}
+.site-manager-announcement{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.site-manager-toggle{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.site-manager-toggle span{display:grid;gap:4px}.site-manager-toggle small{color:#9ca6bd}.site-manager-toggle input{width:18px;height:18px;accent-color:#9b7bff}
+.site-manager-bottom{display:flex;justify-content:flex-end}
+.home-announcements{margin:0 0 18px;padding:14px 18px;border:1px solid rgba(155,123,255,.35);border-radius:13px;background:rgba(115,82,190,.12)}
+.home-announcements p{margin:8px 0 0;color:#e4e7f4}
+@media(max-width:1050px){.site-manager-game{grid-template-columns:repeat(2,minmax(0,1fr))}.site-manager-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.site-manager-game,.site-manager-fields{grid-template-columns:1fr}.site-manager-fields .site-manager-description{grid-column:auto}.site-manager .page-title-row{align-items:flex-start;flex-direction:column}}
