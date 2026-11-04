@@ -3,13 +3,14 @@ import { io } from "socket.io-client";
 import {
   Activity, ArrowRight, Bell, ChevronDown, CircleHelp, Gamepad2, Gauge, Globe,
   Hash, LayoutDashboard, LogOut, Menu, MessageCircle, Plus, Search,
-  Settings, Shield, Sparkles, Users, X, Zap, Trophy, Brain, Puzzle, Compass, Joystick, PartyPopper, CarFront, Goal,
+  Settings, Shield, Sparkles, Users, X, Zap, Trophy, Brain, Puzzle, Compass, Joystick, PartyPopper, CarFront, Goal, CalendarDays, UserRound,
   Medal, Flame, Star, Palette, Crown, CheckCircle2, Gift, Target
 } from "lucide-react";
 import { supabase } from "./supabase";
 import NexusFeatures from "./NexusFeatures";
 import NexusWorld from "./NexusWorld";
 import NexusUpgradeCenter from "./NexusUpgradeCenter";
+import { AdminSeasonalEvents, SeasonalEventsPage } from "./NexusEvents";
 
 const API = "https://nexus-api-7rxk.onrender.com";
 const starterGames = [
@@ -74,6 +75,14 @@ const starterGames = [
     externalUrl: "https://basketbros.io/"
   }
 ];;
+
+const PROFILE_BACKGROUNDS = {
+  violet: "linear-gradient(135deg, #6546b8, #24224f)",
+  sunset: "linear-gradient(135deg, #e47761, #68418e)",
+  ocean: "linear-gradient(135deg, #167b9e, #21365e)",
+  forest: "linear-gradient(135deg, #28795c, #183a3b)",
+  midnight: "linear-gradient(135deg, #30364e, #111827)"
+};
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -153,7 +162,7 @@ export default function App() {
     let cancelled = false;
     async function loadProfile() {
       const user = session.user;
-      const { data } = await supabase.from("profiles").select("username, role, avatar_url, bio, status").eq("id", user.id).maybeSingle();
+      const { data } = await supabase.from("profiles").select("username, role, avatar_url, bio, status, profile_attributes, profile_background").eq("id", user.id).maybeSingle();
       if (data) {
         if (!cancelled) setProfile(data);
         return;
@@ -161,8 +170,8 @@ export default function App() {
       const metadataName = String(user.user_metadata?.username || user.email?.split("@")[0] || "member").trim().slice(0, 24);
       const cleanName = metadataName.length >= 2 ? metadataName : `member_${user.id.slice(0, 8)}`;
       let { data: created, error } = await supabase.from("profiles").upsert(
-        { id: user.id, username: cleanName, role: "member", avatar_url: null, bio: "", status: "Available" }, { onConflict: "id" }
-      ).select("username, role, avatar_url, bio, status").single();
+        { id: user.id, username: cleanName, role: "member", avatar_url: null, bio: "", status: "Available", profile_attributes: [], profile_background: "violet" }, { onConflict: "id" }
+      ).select("username, role, avatar_url, bio, status, profile_attributes, profile_background").single();
       if (error) {
         const fallbackName = `${cleanName.slice(0, 15)}_${user.id.slice(0, 6)}`;
         const retry = await supabase.from("profiles").upsert(
@@ -252,7 +261,9 @@ export default function App() {
     { id: "rewards", label: "Rewards & levels", icon: Trophy },
     { id: "chat", label: "Community chat", icon: MessageCircle },
     { id: "friends", label: "People", icon: Users },
+    { id: "events", label: "Seasonal events", icon: CalendarDays },
     { id: "features", label: "Everything hub", icon: Sparkles },
+    { id: "profile", label: "Edit profile", icon: UserRound },
     { id: "world", label: "NEXUS World", icon: Globe },
     ...(isAdmin ? [{ id: "admin", label: "Admin panel", icon: Shield }] : [])
   ];
@@ -294,14 +305,30 @@ export default function App() {
     finally { setAuthBusy(false); }
   }
 
+  function prepareProfileDraft() {
+    setProfileDraft({
+      username,
+      avatar_url: profile?.avatar_url || guestProfile?.avatar_url || "",
+      bio: profile?.bio || guestProfile?.bio || "",
+      status: profile?.status || guestProfile?.status || "Available",
+      profile_attributes: profile?.profile_attributes || guestProfile?.profile_attributes || [],
+      profile_background: profile?.profile_background || guestProfile?.profile_background || "violet"
+    });
+    setProfileError(""); setProfileFile(null);
+  }
   function openProfileEditor() {
-    setProfileDraft({ username, avatar_url: profile?.avatar_url || guestProfile?.avatar_url || "", bio: profile?.bio || guestProfile?.bio || "", status: profile?.status || guestProfile?.status || "Available" });
-    setProfileError(""); setProfileFile(null); setProfileOpen(true);
+    prepareProfileDraft();
+    setProfileOpen(true);
+  }
+  function openProfilePage() {
+    prepareProfileDraft();
+    setProfileOpen(false);
+    setPage("profile");
   }
   async function saveProfile(e) {
     e.preventDefault(); setProfileError("");
     const allowedStatuses = ["Available", "Away", "Busy", "Do Not Disturb"];
-    const clean = { username: profileDraft.username.trim().slice(0,24), avatar_url: profileDraft.avatar_url.trim(), bio: profileDraft.bio.trim().slice(0,160), status: allowedStatuses.includes(profileDraft.status) ? profileDraft.status : "Available" };
+    const clean = { username: profileDraft.username.trim().slice(0,24), avatar_url: profileDraft.avatar_url.trim(), bio: profileDraft.bio.trim().slice(0,160), status: allowedStatuses.includes(profileDraft.status) ? profileDraft.status : "Available", profile_attributes: [...new Set((Array.isArray(profileDraft.profile_attributes) ? profileDraft.profile_attributes : []).map(value => String(value).trim().slice(0,20)).filter(Boolean))].slice(0,5), profile_background: Object.hasOwn(PROFILE_BACKGROUNDS, profileDraft.profile_background) ? profileDraft.profile_background : "violet" };
     if (profileFile && (!profileFile.type.startsWith("image/") || profileFile.size > 5 * 1024 * 1024)) return setProfileError("Choose an image smaller than 5 MB.");
     if (profileFile && (!session?.user || !supabase)) return setProfileError("File uploads require a signed-in account. You can still use an image URL.");
     if (clean.username.length < 2) return setProfileError("Username must be at least 2 characters.");
@@ -503,10 +530,12 @@ export default function App() {
         {page === "home" && <HomePage username={username} online={online} rooms={rooms} setPage={setPage} setNotice={setNotice}/>}
         {page === "games" && <GamesPage socket={socket} username={username} session={session} rooms={rooms} myLobby={myLobby} lobbyCode={lobbyCode} setLobbyCode={setLobbyCode} lobbyError={lobbyError} createLobby={createLobby} joinLobby={joinLobby} leaveLobby={leaveLobby} startLobby={startLobby} recordGame={recordGame} gameToOpen={worldGameToOpen} onGameOpenHandled={() => setWorldGameToOpen("")}/>}
         {page === "rewards" && <RewardsPage username={username} stats={playerStats} activity={activityFeed} leaderboard={playerLeaderboard} loading={rewardsLoading} onClaimDaily={claimDailyChallenge} onChooseTheme={chooseTheme}/>}
+        {page === "events" && <SeasonalEventsPage/>}
+        {page === "profile" && <div className="profile-editor-page"><div className="page-title-row"><div><div className="eyebrow">MAKE IT YOURS</div><h1>Edit your profile</h1><p className="muted">Change how your profile looks to the NEXUS community.</p></div><span className="live-tag"><UserRound size={14}/> PROFILE SETTINGS</span></div><ProfileEditor embedded draft={profileDraft} setDraft={setProfileDraft} onSave={saveProfile} onClose={() => setPage("features")} busy={profileBusy} error={profileError} file={profileFile} setFile={setProfileFile} username={username} avatarUrl={profile?.avatar_url || guestProfile?.avatar_url}/></div>}
         {page === "chat" && <ChatPage username={username} online={online} messages={messages} channel={channel} setChannel={setChannel} messageText={messageText} setMessageText={setMessageText} sendMessage={sendChatMessage} chatFile={chatFile} setChatFile={setChatFile} replyTo={replyTo} setReplyTo={setReplyTo} reactToMessage={reactToMessage} editMessage={editMessage} deleteMessage={deleteMessage} reportMessage={reportMessage}/>}
-        {page === "features" && <><NexusFeatures session={session} username={username} stats={playerStats} onlineCount={online.length} games={starterGames} isAdmin={isAdmin} setNotice={setNotice}/><NexusUpgradeCenter games={starterGames} username={username} userId={session?.user?.id} stats={playerStats} activity={activityFeed} notifications={notifications} isAdmin={isAdmin} onOpenGame={game => { setWorldGameToOpen(game.name); setPage("games"); }} onCreateParty={game => createLobby(game, true)} onGo={setPage} setNotice={setNotice}/></>}
+        {page === "features" && <><NexusFeatures session={session} username={username} stats={playerStats} onlineCount={online.length} games={starterGames} isAdmin={isAdmin} setNotice={setNotice}/><NexusUpgradeCenter games={starterGames} username={username} userId={session?.user?.id} stats={playerStats} activity={activityFeed} notifications={notifications} isAdmin={isAdmin} onOpenGame={game => { setWorldGameToOpen(game.name); setPage("games"); }} onCreateParty={game => createLobby(game, true)} onGo={destination => { if (destination === "profile") openProfilePage(); else setPage(destination); }} setNotice={setNotice}/></> }
         {page === "world" && <NexusWorld session={session} username={username} profile={profile} games={starterGames} online={online} activity={activityFeed} isAdmin={isAdmin} onOpenGames={() => setPage("games")} onPlayGame={game => { setWorldGameToOpen(game.name); setPage("games"); }} onProfileUpdate={status => setProfile(old => old ? { ...old, status } : old)} setNotice={setNotice}/> }
-        {page === "friends" && <PeoplePage online={online} session={session} friendRequests={friendRequests} addFriend={addFriend} respondFriend={respondFriend} openDM={openDM} blockUser={blockUser} dmTarget={dmTarget} dmMessages={dmMessages} dmText={dmText} setDmText={setDmText} sendDM={sendDM} closeDM={() => setDmTarget(null)}/>}
+        {page === "friends" && <PeoplePage username={username} online={online} session={session} friendRequests={friendRequests} addFriend={addFriend} respondFriend={respondFriend} openDM={openDM} blockUser={blockUser} dmTarget={dmTarget} dmMessages={dmMessages} dmText={dmText} setDmText={setDmText} sendDM={sendDM} closeDM={() => setDmTarget(null)}/>}
         {page === "admin" && (isAdmin ? <AdminPage stats={adminStats} online={online} reports={reports} updateReport={updateReport} gameSubmissions={gameSubmissions} reviewGameSubmission={reviewGameSubmission}/> : <div className="empty-state"><Shield/><h2>Admin access required</h2><p>Your account does not have administrator permissions.</p></div>)}
       </div>
     </main>
@@ -519,17 +548,20 @@ function ProfileAvatar({ username, url, small = false }) {
   return url ? <img className={`avatar profile-avatar-image ${small ? "small" : ""}`} src={url} alt={`${username}'s profile`} onError={e => { e.currentTarget.style.display = "none"; }}/> : <div className={`avatar ${small ? "small" : ""}`}>{initials}</div>;
 }
 
-function ProfileEditor({ draft, setDraft, onSave, onClose, busy, error, file, setFile, username, avatarUrl }) {
+function ProfileEditor({ draft, setDraft, onSave, onClose, busy, error, file, setFile, username, avatarUrl, embedded = false }) {
   const change = (key, value) => setDraft(old => ({ ...old, [key]: value }));
-  return <div className="profile-modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+  const previewBackground = PROFILE_BACKGROUNDS[draft.profile_background] || PROFILE_BACKGROUNDS.violet;
+  return <div className={embedded ? "profile-editor-embedded" : "profile-modal-backdrop"} onMouseDown={e => { if (!embedded && e.target === e.currentTarget) onClose(); }}>
     <section className="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-editor-title">
       <div className="profile-modal-head"><div><div className="eyebrow">MAKE IT YOURS</div><h2 id="profile-editor-title">Edit profile</h2></div><button className="icon-btn" type="button" onClick={onClose} aria-label="Close"><X/></button></div>
-      <div className="profile-preview"><ProfileAvatar username={draft.username || username} url={draft.avatar_url || avatarUrl}/><div><b>{draft.username || username}</b><small>{draft.status || "Available"}</small></div></div>
+      <div className="profile-preview profile-preview-custom" style={{ background: previewBackground }}><ProfileAvatar username={draft.username || username} url={draft.avatar_url || avatarUrl}/><div><b>{draft.username || username}</b><small>{draft.status || "Available"}</small></div></div>
       <form className="profile-form" onSubmit={onSave}>
         <label>Username<input value={draft.username} onChange={e => change("username", e.target.value)} maxLength={24} minLength={2} required/></label>
         <label>Upload profile picture<input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)}/><small>{file ? `Selected: ${file.name}` : "Choose an image from your device (max 5 MB)."} Uploads are saved to your account.</small></label>\n        <label>Or use a profile picture URL<input type="url" value={draft.avatar_url} onChange={e => { change("avatar_url", e.target.value); if (file) setFile(null); }} placeholder="https://example.com/photo.jpg"/><small>Paste a direct link to an image instead.</small></label>
         <label>Status<select value={draft.status || "Available"} onChange={e => change("status", e.target.value)}><option value="Available">🟢 Available</option><option value="Away">🌙 Away</option><option value="Busy">🔴 Busy</option><option value="Do Not Disturb">⛔ Do Not Disturb</option></select></label>
         <label>About me<textarea value={draft.bio} onChange={e => change("bio", e.target.value)} maxLength={160} rows={3} placeholder="Tell the community a little about yourself..."/></label>
+        <label>Profile attributes<input value={(draft.profile_attributes || []).join(", ")} onChange={e => change("profile_attributes", e.target.value.split(",").map(value => value.trim()).filter(Boolean).slice(0,5))} maxLength={120} placeholder="Fun, Helpful, Competitive"/><small>Add up to 5 short tags, separated by commas.</small></label>
+        <label>Profile background<select value={draft.profile_background || "violet"} onChange={e => change("profile_background", e.target.value)}><option value="violet">Violet glow</option><option value="sunset">Sunset</option><option value="ocean">Ocean</option><option value="forest">Forest</option><option value="midnight">Midnight</option></select><small>This background appears on your People card.</small></label>
         {error && <div className="form-error">{error}</div>}
         <div className="profile-form-actions"><button className="quiet-btn" type="button" onClick={onClose}>Cancel</button><button className="primary-btn" disabled={busy}>{busy ? "Saving..." : "Save changes"} <ArrowRight size={16}/></button></div>
       </form>
@@ -623,12 +655,12 @@ function ChatPage({ username, online, messages, channel, setChannel, messageText
  const shown=messages.filter(m=>!m.system||m.text?.includes(channel));
  return <div className="chat-layout"><aside className="chat-channels"><div className="chat-space"><div className="workspace-icon">N</div><div><b>Nexus Community</b><small>Community server</small></div></div><div className="nav-label">TEXT CHANNELS</div>{channels.map(c=><button key={c} className={"channel-btn "+(channel===c?"selected":"")} onClick={()=>setChannel(c)}><Hash size={16}/>{c}</button>)}<div className="chat-online"><div className="nav-label">ONLINE — {online.length}</div>{online.map((n,i)=><div className="online-person" key={n+i}><span className="avatar tiny">{n.slice(0,1).toUpperCase()}</span>{n}<i/></div>)}</div></aside><section className="chat-main"><div className="chat-header"><div><h2><Hash size={19}/>{channel}</h2><p>A place for good conversations.</p></div><span className="live-tag"><i/> CONNECTED</span></div><div className="message-list">{shown.map(m=><div className={"message "+(m.system?"system-message":"")} key={m.id||m.at}><div className="avatar">{m.system?"✦":m.username?.slice(0,1).toUpperCase()}</div><div className="message-body"><div className="message-meta"><b>{m.username||"Nexus"}</b><small>{m.at?new Date(m.at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):""} {m.edited?"(edited)":""}</small></div>{m.replyTo&&<small className="reply-context">Replying to {m.replyTo.username}: {m.replyTo.text}</small>}<p>{m.text}</p>{m.attachment&&<a className="chat-attachment" href={m.attachment.url} target="_blank" rel="noreferrer">📎 {m.attachment.name}</a>}{!m.system&&<div className="message-tools"><button type="button" onClick={()=>setReplyTo(m)}>Reply</button>{["👍","❤️","😂","🎉","👀"].map(e=><button type="button" key={e} onClick={()=>reactToMessage(m.id,e)}>{e} {m.reactions?.[e]?.length||""}</button>)}{m.username===username&&<><button type="button" onClick={()=>editMessage(m)}>Edit</button><button type="button" onClick={()=>deleteMessage(m)}>Delete</button></>}<button type="button" onClick={()=>reportMessage(m)}>Report</button></div>}</div></div>)}{!shown.length&&<div className="chat-empty"><div>✦</div><h3>Welcome to #{channel}</h3><p>This is the beginning of the conversation. Say hello!</p></div>}</div>{replyTo&&<div className="reply-banner">Replying to {replyTo.username}<button type="button" onClick={()=>setReplyTo(null)}>Cancel</button></div>}<form className="message-composer" onSubmit={sendMessage}><label className="attach-button" title="Attach image or PDF">＋<input type="file" accept="image/*,application/pdf" onChange={e=>setChatFile(e.target.files?.[0]||null)}/></label><input value={messageText} onChange={e=>setMessageText(e.target.value)} placeholder={chatFile?chatFile.name:"Message #"+channel} maxLength={1000}/><button className="send-btn" disabled={!messageText.trim()&&!chatFile}><ArrowRight/></button></form></section></div>;
 }
-function PeoplePage({ online, session, friendRequests, addFriend, respondFriend, openDM, blockUser, dmTarget, dmMessages, dmText, setDmText, sendDM, closeDM }) {
- const [memberStatuses,setMemberStatuses]=useState({});
- useEffect(()=>{if(!supabase||!session?.user||!online.length){setMemberStatuses({});return;}supabase.from("profiles").select("username,status").in("username",online).then(({data})=>setMemberStatuses(Object.fromEntries((data||[]).map(row=>[row.username,row.status||"Available"]))));},[online,session]);
+function PeoplePage({ username, online, session, friendRequests, addFriend, respondFriend, openDM, blockUser, dmTarget, dmMessages, dmText, setDmText, sendDM, closeDM }) {
+ const [memberProfiles,setMemberProfiles]=useState({});
+ useEffect(()=>{if(!supabase||!session?.user||!online.length){setMemberProfiles({});return;}supabase.from("profiles").select("username,status,avatar_url,bio,profile_attributes,profile_background").in("username",online).then(({data})=>setMemberProfiles(Object.fromEntries((data||[]).map(row=>[row.username,row]))));},[online,session]);
  const incoming=friendRequests.filter(r=>r.receiver_id===session?.user?.id&&r.status==="pending");
  const accepted=friendRequests.filter(r=>r.status==="accepted");
- return <><div className="page-title-row"><div><div className="eyebrow">YOUR COMMUNITY</div><h1>People & friends</h1><p className="muted">Connect with members and start private conversations.</p></div><span className="live-tag"><i/> {online.length} ONLINE</span></div>{!session&&<div className="form-error">Sign in to use friends and private messages.</div>}{incoming.length>0&&<section className="social-panel"><h2>Friend requests</h2>{incoming.map(r=><div className="social-row" key={r.id}><span>Incoming friend request</span><button onClick={()=>respondFriend(r,true)}>Accept</button><button onClick={()=>respondFriend(r,false)}>Decline</button></div>)}</section>}<section className="social-panel"><h2>Friends ({accepted.length})</h2>{accepted.length?accepted.map(r=><div className="social-row" key={r.id}><span>Friend connection</span><small>Accepted</small></div>):<p className="muted">Accepted friends will appear here.</p>}</section><div className="section-heading"><div><h2>People online</h2><p>Send a friend request to someone in the community.</p></div></div><div className="people-grid">{online.map((n,i)=><div className="person-card" key={n+i}><div className="avatar large">{n.slice(0,1).toUpperCase()}</div><div><b>{n}</b><small><i/> {memberStatuses[n] || "Online now"}</small></div><button className="secondary-btn" onClick={()=>addFriend(n)}>Add friend</button><button className="secondary-btn" onClick={()=>openDM(n)}>Message</button><button className="quiet-btn" onClick={()=>blockUser(n)}>Block</button></div>)}{!online.length&&<div className="empty-state"><Users/><h2>It's quiet in here</h2><p>When people connect, they'll show up here.</p></div>}</div>{dmTarget&&<section className="dm-panel"><div className="dm-head"><h2>Message {dmTarget.username}</h2><button onClick={closeDM}>Close</button></div><div className="dm-history">{dmMessages.map(m=><p key={m.id}><b>{m.sender_id===session?.user?.id?"You":dmTarget.username}:</b> {m.body}</p>)}</div><form className="message-composer" onSubmit={sendDM}><input value={dmText} onChange={e=>setDmText(e.target.value)} placeholder="Write a private message..." maxLength={2000}/><button className="send-btn" disabled={!dmText.trim()}><ArrowRight/></button></form></section>}</>;
+ return <><div className="page-title-row"><div><div className="eyebrow">YOUR COMMUNITY</div><h1>People & friends</h1><p className="muted">Connect with members and start private conversations.</p></div><span className="live-tag"><i/> {online.length} ONLINE</span></div>{!session&&<div className="form-error">Sign in to use friends and private messages.</div>}{incoming.length>0&&<section className="social-panel"><h2>Friend requests</h2>{incoming.map(r=><div className="social-row" key={r.id}><span>Incoming friend request</span><button onClick={()=>respondFriend(r,true)}>Accept</button><button onClick={()=>respondFriend(r,false)}>Decline</button></div>)}</section>}<section className="social-panel"><h2>Friends ({accepted.length})</h2>{accepted.length?accepted.map(r=><div className="social-row" key={r.id}><span>Friend connection</span><small>Accepted</small></div>):<p className="muted">Accepted friends will appear here.</p>}</section><div className="section-heading"><div><h2>People online</h2><p>Send a friend request to someone in the community.</p></div></div><div className="people-grid">{online.map((n,i)=>{const member=memberProfiles[n]||{};const isSelf=n.toLowerCase()===String(username||"").toLowerCase();return <div className="person-card profile-person-card" key={n+i} style={{background:PROFILE_BACKGROUNDS[member.profile_background]||PROFILE_BACKGROUNDS.violet}}><ProfileAvatar username={n} url={member.avatar_url}/><div className="profile-person-info"><b>{n}{isSelf?" (You)":""}</b><small><i/> {member.status || "Online now"}</small>{member.bio&&<small>{member.bio}</small>}{Array.isArray(member.profile_attributes)&&member.profile_attributes.length>0&&<div className="profile-person-meta">{member.profile_attributes.slice(0,5).map(attribute=><span className="profile-attribute" key={attribute}>{attribute}</span>)}</div>}</div>{!isSelf&&<><button className="secondary-btn" onClick={()=>addFriend(n)}>Add friend</button><button className="secondary-btn" onClick={()=>openDM(n)}>Message</button><button className="quiet-btn" onClick={()=>blockUser(n)}>Block</button></>}</div>})}{!online.length&&<div className="empty-state"><Users/><h2>It's quiet in here</h2><p>When people connect, they'll show up here.</p></div>}</div>{dmTarget&&<section className="dm-panel"><div className="dm-head"><h2>Message {dmTarget.username}</h2><button onClick={closeDM}>Close</button></div><div className="dm-history">{dmMessages.map(m=><p key={m.id}><b>{m.sender_id===session?.user?.id?"You":dmTarget.username}:</b> {m.body}</p>)}</div><form className="message-composer" onSubmit={sendDM}><input value={dmText} onChange={e=>setDmText(e.target.value)} placeholder="Write a private message..." maxLength={2000}/><button className="send-btn" disabled={!dmText.trim()}><ArrowRight/></button></form></section>}</>;
 }
 
 function RewardsPage({ username, stats, activity, leaderboard, loading, onClaimDaily, onChooseTheme }) {
@@ -658,5 +690,5 @@ function RewardsPage({ username, stats, activity, leaderboard, loading, onClaimD
 }
 
 function AdminPage({ stats, online, reports=[], updateReport, gameSubmissions=[], reviewGameSubmission }) {
- return <><div className="page-title-row"><div><div className="eyebrow">CONTROL CENTER</div><h1>Admin dashboard</h1><p className="muted">Community activity and moderation.</p></div><span className="admin-tag"><Shield size={14}/> ADMINISTRATOR</span></div><div className="stat-grid"><StatCard icon={Users} label="Online users" value={stats.online} note="Live connections" tone="purple"/><StatCard icon={Gamepad2} label="Active lobbies" value={stats.rooms} note="Open game rooms" tone="blue"/><StatCard icon={Gauge} label="Game catalog" value={stats.games} note="Available experiences" tone="orange"/><StatCard icon={Activity} label="API status" value="Online" note="Server responding" tone="green"/></div><section className="social-panel"><h2>Game submissions ({gameSubmissions.length})</h2>{gameSubmissions.length?gameSubmissions.map(item=><div className="report-row" key={item.id}><div><b>{item.name} · {item.category}</b><p>{item.description}</p><a href={item.url} target="_blank" rel="noreferrer">Open submitted game</a></div><button onClick={()=>reviewGameSubmission(item,"approved")}>Approve</button><button onClick={()=>reviewGameSubmission(item,"rejected")}>Reject</button></div>):<p className="muted">No pending game submissions.</p>}</section><section className="social-panel"><h2>Moderation queue ({reports.length})</h2>{reports.length?reports.map(r=><div className="report-row" key={r.id}><div><b>{r.reported_username} in #{r.channel}</b><p>{r.message_text}</p><small>Reason: {r.reason}</small></div><button onClick={()=>updateReport(r,"reviewed")}>Mark reviewed</button><button onClick={()=>updateReport(r,"dismissed")}>Dismiss</button></div>):<p className="muted">No open reports.</p>}</section><div className="section-heading"><div><h2>Online members</h2><p>Currently connected to Nexus.</p></div></div><div className="people-grid">{online.map((n,i)=><div className="person-card" key={n+i}><div className="avatar">{n.slice(0,1).toUpperCase()}</div><b>{n}</b><span className="online-pill">Online</span></div>)}</div></>;
+ return <><div className="page-title-row"><div><div className="eyebrow">CONTROL CENTER</div><h1>Admin dashboard</h1><p className="muted">Community activity and moderation.</p></div><span className="admin-tag"><Shield size={14}/> ADMINISTRATOR</span></div><div className="stat-grid"><StatCard icon={Users} label="Online users" value={stats.online} note="Live connections" tone="purple"/><StatCard icon={Gamepad2} label="Active lobbies" value={stats.rooms} note="Open game rooms" tone="blue"/><StatCard icon={Gauge} label="Game catalog" value={stats.games} note="Available experiences" tone="orange"/><StatCard icon={Activity} label="API status" value="Online" note="Server responding" tone="green"/></div><section className="social-panel"><h2>Game submissions ({gameSubmissions.length})</h2>{gameSubmissions.length?gameSubmissions.map(item=><div className="report-row" key={item.id}><div><b>{item.name} · {item.category}</b><p>{item.description}</p><a href={item.url} target="_blank" rel="noreferrer">Open submitted game</a></div><button onClick={()=>reviewGameSubmission(item,"approved")}>Approve</button><button onClick={()=>reviewGameSubmission(item,"rejected")}>Reject</button></div>):<p className="muted">No pending game submissions.</p>}</section><section className="social-panel"><h2>Moderation queue ({reports.length})</h2>{reports.length?reports.map(r=><div className="report-row" key={r.id}><div><b>{r.reported_username} in #{r.channel}</b><p>{r.message_text}</p><small>Reason: {r.reason}</small></div><button onClick={()=>updateReport(r,"reviewed")}>Mark reviewed</button><button onClick={()=>updateReport(r,"dismissed")}>Dismiss</button></div>):<p className="muted">No open reports.</p>}</section><AdminSeasonalEvents/><div className="section-heading"><div><h2>Online members</h2><p>Currently connected to Nexus.</p></div></div><div className="people-grid">{online.map((n,i)=><div className="person-card" key={n+i}><div className="avatar">{n.slice(0,1).toUpperCase()}</div><b>{n}</b><span className="online-pill">Online</span></div>)}</div></>;
 }
