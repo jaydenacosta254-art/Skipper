@@ -551,12 +551,14 @@ export default function App() {
   async function submitGameSuggestion(payload) {
     if (!session?.user || !supabase) { setNotice("Sign in to suggest a game."); return false; }
     const { error } = await supabase.from("game_submissions").insert({ user_id: session.user.id, name: payload.name.trim(), url: payload.url.trim(), description: payload.description.trim(), category: payload.category || "Other" });
-    if (error) { setNotice("Game suggestion could not be sent: "+error.message); return false; }\n    setNotice("Game suggestion sent to the NEXUS admins."); return true;
+    if (error) { setNotice("Game suggestion could not be sent: "+error.message); return false; }
+    setNotice("Game suggestion sent to the NEXUS admins."); return true;
   }
   async function submitBugReport(payload) {
     if (!session?.user || !supabase) { setNotice("Sign in to submit a bug report."); return false; }
     const { error } = await supabase.from("nexus_bug_reports").insert({ reporter_id: session.user.id, username, title: payload.title.trim(), description: payload.description.trim(), page: page, severity: payload.severity || "normal" });
-    if (error) { setNotice("Bug report could not be sent: "+error.message); return false; }\n    setNotice("Bug report submitted. Thank you for helping improve NEXUS."); return true;
+    if (error) { setNotice("Bug report could not be sent: "+error.message); return false; }
+    setNotice("Bug report submitted. Thank you for helping improve NEXUS."); return true;
   }
   async function reportUser(targetName) {
     if (!session?.user || !supabase) return setNotice("Sign in to report a member.");
