@@ -59,6 +59,18 @@ export default function NexusFeatures({session,username,stats,onlineCount,games:
     setBusy(false);
   }
   useEffect(()=>{load();},[userId]);
+  useEffect(()=>{
+    if(!signedIn)return;
+    let active=true;
+    supabase.from("nexus_cosmetic_inventory").select("owned_ids,equipped").eq("user_id",userId).maybeSingle().then(({data})=>{
+      if(!active||!data)return;
+      setEarned(data.owned_ids||[]);
+      setEquipped(data.equipped||{});
+      localSave("nexus_cosmetics_"+userId,data.owned_ids||[]);
+      localSave("nexus_equipped_"+userId,data.equipped||{});
+    });
+    return()=>{active=false;};
+  },[userId,signedIn]);
   function localSave(key,value){localStorage.setItem(key,JSON.stringify(value));}
   async function toggleFavorite(name){
     if(!signedIn){setNotice("Sign in to save favorites across devices.");return;}
@@ -77,8 +89,8 @@ export default function NexusFeatures({session,username,stats,onlineCount,games:
   async function createTournament(){if(!signedIn){setNotice("Sign in to create a tournament.");return;}const name=window.prompt("Tournament name?");if(!name?.trim())return;const {error}=await supabase.from("nexus_tournaments").insert({user_id:userId,username,title:name.trim(),game_name:"Community tournament",status:"Open"});if(error){setError(error.message);return;}load();}
   async function submitReview(e){e.preventDefault();if(!signedIn){setNotice("Sign in to review games.");return;}const {error}=await supabase.from("nexus_game_reviews").upsert({user_id:userId,username,game_name:reviewDraft.game,rating:Number(reviewDraft.rating),body:reviewDraft.body.trim()},{onConflict:"user_id,game_name"});if(error){setError(error.message);return;}setReviewDraft(v=>({...v,body:""}));load();}
   function finishMission(m){if(done.includes(m.id))return;const next=[...done,m.id];setDone(next);localSave("nexus_missions_"+(userId||"guest"),next);setNotice("Mission completed! +"+m.xp+" XP. Mission rewards are tracked here; account XP sync is coming with the rewards backend update.");}
-  function buy(item){if(earned.includes(item.id)||xp<item.price){setNotice(xp<item.price?"You need more XP for that item.":"You already own that item.");return;}const next=[...earned,item.id];setEarned(next);localSave("nexus_cosmetics_"+(userId||"guest"),next);setNotice(item.name+" unlocked!");}
-  function equip(item){const next={...equipped,[item.kind]:item.value};setEquipped(next);localSave("nexus_equipped_"+(userId||"guest"),next);setNotice(item.name+" equipped.");}
+  async function buy(item){if(earned.includes(item.id)||xp<item.price){setNotice(xp<item.price?"You need more XP for that item.":"You already own that item.");return;}const next=[...earned,item.id];setEarned(next);localSave("nexus_cosmetics_"+(userId||"guest"),next);if(signedIn){const {error}=await supabase.from("nexus_cosmetic_inventory").upsert({user_id:userId,owned_ids:next,equipped,updated_at:new Date().toISOString()},{onConflict:"user_id"});if(error){setError("Cosmetic unlock could not sync. Run the NEXUS upgrade SQL setup.");return;}}setNotice(item.name+" unlocked!");}
+  async function equip(item){const next={...equipped,[item.kind]:item.value};setEquipped(next);localSave("nexus_equipped_"+(userId||"guest"),next);if(signedIn){const {error}=await supabase.from("nexus_cosmetic_inventory").upsert({user_id:userId,owned_ids:earned,equipped:next,updated_at:new Date().toISOString()},{onConflict:"user_id"});if(error){setError("Equipped style could not sync. Run the NEXUS upgrade SQL setup.");return;}}setNotice(item.name+" equipped.");}
   const seasonRows=profileRows.slice().sort((a,b)=>(b.xp||0)-(a.xp||0));
   const filteredReviews=reviews.filter(r=>reviewFilter==="All"||r.game_name===reviewFilter);
   return <div className="nexus-features">
