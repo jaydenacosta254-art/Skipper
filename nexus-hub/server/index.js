@@ -17,6 +17,7 @@ const io = new Server(httpServer, {
 });
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
+const SUPABASE_BASE_URL = SUPABASE_URL.endsWith("/") ? SUPABASE_URL.slice(0, -1) : SUPABASE_URL;
 const SUPABASE_PUBLIC_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const supabaseAdmin = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
@@ -41,7 +42,7 @@ app.get("/api/stats", (_req, res) => res.json({
 }));
 
 function cleanDisplayName(value) {
-  const name = String(value || "Guest").replace(/[\\u0000-\\u001f\\u007f]/g, "").trim().slice(0, 24);
+  const name = String(value || "Guest").trim().replace(/\s+/g, " ").slice(0, 24);
   return name || "Guest";
 }
 
@@ -66,7 +67,7 @@ async function verifySupabaseUser(accessToken) {
   if (!SUPABASE_URL || !SUPABASE_PUBLIC_KEY) {
     throw new Error("Chat authentication is not configured on the NEXUS server yet.");
   }
-  const response = await fetch(SUPABASE_URL.replace(/\\/$/, "") + "/auth/v1/user", {
+  const response = await fetch(SUPABASE_BASE_URL + "/auth/v1/user", {
     headers: {
       apikey: SUPABASE_PUBLIC_KEY,
       Authorization: "Bearer " + accessToken
@@ -78,7 +79,7 @@ async function verifySupabaseUser(accessToken) {
 
   let username = user.user_metadata?.username || user.email?.split("@")[0] || "Member";
   try {
-    const profileUrl = new URL(SUPABASE_URL.replace(/\\/$/, "") + "/rest/v1/profiles");
+    const profileUrl = new URL(SUPABASE_BASE_URL + "/rest/v1/profiles");
     profileUrl.searchParams.set("id", "eq." + user.id);
     profileUrl.searchParams.set("select", "username");
     const profileResponse = await fetch(profileUrl, {
@@ -175,10 +176,10 @@ io.on("connection", (socket) => {
     const rawUrl = String(rawAttachment?.url || "");
     let attachment = null;
     if (identity?.userId && rawAttachment && SUPABASE_URL) {
-      const prefix = SUPABASE_URL.replace(/\\/$/, "") + "/storage/v1/object/public/chat-uploads/" + identity.userId + "/";
+      const prefix = SUPABASE_BASE_URL + "/storage/v1/object/public/chat-uploads/" + identity.userId + "/";
       if (rawUrl.startsWith(prefix) && rawUrl.length <= 2048) {
         attachment = {
-          name: String(rawAttachment.name || "Attachment").replace(/[\\u0000-\\u001f\\u007f]/g, "").slice(0, 120),
+          name: String(rawAttachment.name || "Attachment").replaceAll("/", "_").slice(0, 120),
           url: rawUrl
         };
       }
