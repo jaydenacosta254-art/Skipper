@@ -480,9 +480,19 @@ export default function App() {
 
   useEffect(() => {
     if (!username || username === "Guest") return;
-    const s = io(API || window.location.origin, { transports: ["websocket", "polling"] });
+    const s = io(API || window.location.origin, {
+      transports: ["websocket", "polling"],
+      auth: {
+        accessToken: session?.access_token || "",
+        guestName: username
+      }
+    });
     setSocket(s);
-    s.on("connect", () => s.emit("presence:join", { username }));
+    s.on("connect", () => s.emit("presence:join"));
+    s.on("connect_error", error => {
+      setNotice(error?.message || "Could not connect to NEXUS chat. Please refresh and sign in again.");
+    });
+    s.on("chat:error", message => setNotice(message || "The chat request could not be completed."));
     s.on("presence:update", setOnline);
     s.on("chat:message", m => setMessages(old => [...old.filter(x => x.id !== m.id).slice(-99), m]));
     s.on("chat:history", history => setMessages(history || []));
@@ -496,7 +506,7 @@ export default function App() {
     s.on("game:started", info => setNotice(`${info.game} is starting! Players: ${info.players.join(", ")}`));
     fetch(`${API}/api/stats`).then(r => r.json()).then(setAdminStats).catch(() => {});
     return () => s.disconnect();
-  }, [username]);
+  }, [username, session?.access_token]);
 
   useEffect(() => { if (socket) socket.emit("chat:join", { channel }); }, [socket, channel]);
 
