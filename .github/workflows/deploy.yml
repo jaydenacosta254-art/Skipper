@@ -29,6 +29,10 @@ jobs:
         working-directory: ./nexus-hub
         run: npm install
 
+      - name: Check server JavaScript syntax
+        working-directory: ./nexus-hub
+        run: node --check server/index.js
+
       - name: Build website
         working-directory: ./nexus-hub
         env:
