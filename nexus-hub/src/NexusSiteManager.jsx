@@ -14,7 +14,7 @@ export default function NexusSiteManager({ games = [], announcements = [], setti
     e.preventDefault();
     if (!newGame.name.trim() || (!newGame.externalUrl.trim() && !newGame.htmlCode.trim())) return setError("Add a game name and either a game URL or HTML code.");
     if (draftGames.some(g => g.name.toLowerCase() === newGame.name.trim().toLowerCase())) return setError("A game with that name already exists.");
-    setDraftGames(old => [...old, { ...newGame, name:newGame.name.trim(), description:newGame.description.trim(), externalUrl:newGame.externalUrl.trim(), htmlCode:newGame.htmlCode.trim(), openMode:newGame.htmlCode.trim() ? "embed" : newGame.openMode }]);
+    setDraftGames(old => [...old, { ...newGame, name:newGame.name.trim(), description:newGame.description.trim(), externalUrl:newGame.externalUrl.trim(), htmlCode:newGame.htmlCode.trim(), openMode:"embed" }]);
     setNewGame({ name:"", type:"Action", players:"Single-player", mode:"single", color:"blue", icon:"🎮", imageUrl:"", description:"", externalUrl:"", htmlCode:"", openMode:"embed" });
     setError("");
   }
@@ -68,7 +68,7 @@ export default function NexusSiteManager({ games = [], announcements = [], setti
         
         <input placeholder="Game URL (optional if using HTML)" value={newGame.externalUrl} onChange={e=>setNewGame({...newGame,externalUrl:e.target.value})}/>
         <textarea className="site-manager-description" rows={7} spellCheck={false} placeholder="Or paste the full HTML game code here..." value={newGame.htmlCode} onChange={e=>setNewGame({...newGame,htmlCode:e.target.value,openMode:e.target.value?.trim()?"embed":newGame.openMode})}/>
-        <select aria-label="How the game opens" disabled={!!newGame.htmlCode.trim()} value={newGame.openMode} onChange={e=>setNewGame({...newGame,openMode:e.target.value})}><option value="embed">Embed inside NEXUS</option><option value="new-tab">Open in a new tab</option></select>
+        <p className="muted site-manager-embed-note">New games open directly inside NEXUS. Use the game URL to load the complete hosted game; paste HTML only for a self-contained game.</p>
         <input className="site-manager-description" placeholder="Description" value={newGame.description} onChange={e=>setNewGame({...newGame,description:e.target.value})}/>
       </div><button className="secondary-btn"><Plus size={15}/> Add game</button></form>
     </section>
