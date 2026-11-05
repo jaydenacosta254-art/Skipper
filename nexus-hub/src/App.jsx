@@ -234,7 +234,10 @@ export default function App() {
         setSiteGames(data.games.map(game => {
           const name = game.name?.toLowerCase();
           if (name === "chicken royale") {
-            return { ...game, externalUrl: "/Skipper/classroom/index.html", openUrl: "", url: "", htmlCode: "", openMode: "embed", allowSameOrigin: true };
+            const savedUrl = game.externalUrl || game.openUrl || game.url || "";
+            if (savedUrl) return { ...game, externalUrl: savedUrl, openUrl: "", url: "" };
+            if (game.htmlCode?.trim()) return { ...game, externalUrl: "", openUrl: "", url: "", openMode: "embed" };
+            return { ...game, externalUrl: "/Skipper/classroom/index.html", openUrl: "", url: "", openMode: "embed", allowSameOrigin: true };
           }
           if (name === "basket random") {
             const savedUrl = game.externalUrl || game.openUrl || game.url || "";
@@ -243,7 +246,12 @@ export default function App() {
               ? { ...game, externalUrl: "https://app-197304.games.s3.yandex.net/197304/kj9rcykboy6eol5xnn250jesr7v0hoh1_brotli/index.html?sdk=%2Fsdk%2F_%2Fv2.b0917aca706232afb55d.js#origin=https%3A%2F%2Fyandex.com&app-id=197304&device-type=desktop", openUrl: "", url: "", htmlCode: "", imageUrl: "https://img.gamedistribution.com/bf1268dccb5d43e7970bb3edaa54afc8-512x512.jpeg", openMode: "embed", allowSameOrigin: true }
               : { ...game, externalUrl: savedUrl, openUrl: "", url: "" };
           }
-          if (name === "web dashers") return { ...game, externalUrl: "https://web-dashers.github.io/", openUrl: "", url: "", htmlCode: "", openMode: "embed", allowSameOrigin: false };
+          if (name === "web dashers") {
+            const savedUrl = game.externalUrl || game.openUrl || game.url || "";
+            if (savedUrl) return { ...game, externalUrl: savedUrl, openUrl: "", url: "" };
+            if (game.htmlCode?.trim()) return { ...game, externalUrl: "", openUrl: "", url: "", openMode: "embed" };
+            return { ...game, externalUrl: "https://web-dashers.github.io/", openUrl: "", url: "", openMode: "embed", allowSameOrigin: false };
+          }
           return game;
         }));
       }
