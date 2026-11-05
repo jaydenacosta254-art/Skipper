@@ -14,6 +14,17 @@ import NexusSiteManager from "./NexusSiteManager";
 import { AdminSeasonalEvents, SeasonalEventsPage } from "./NexusEvents";
 
 const API = "https://nexus-api-7rxk.onrender.com";
+
+function getPacificDateKey(value = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(value);
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return values.year + "-" + values.month + "-" + values.day;
+}
 const starterGames = [
   {
     name: "Retro Bowl",
@@ -205,6 +216,7 @@ export default function App() {
   const [siteAnnouncements, setSiteAnnouncements] = useState([]);
   const [siteSettings, setSiteSettings] = useState({ allowGameSubmissions: true, showOnlineStats: true });
   const [siteConfigBusy, setSiteConfigBusy] = useState(false);
+  const [dailyUpdates, setDailyUpdates] = useState([]);
 
   const username = profile?.username || guestProfile?.username || guest || "Guest";
   const isAdmin = profile?.role === "admin";
@@ -265,18 +277,120 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!supabase) return;
+    let disposed = false;
+    async function loadDailyUpdates() {
+      const { data, error } = await supabase
+        .from("nexus_daily_updates")
+        .select("id, username, activity_date, summary, items, created_at, updated_at")
+        .order("activity_date", { ascending: false })
+        .limit(30);
+      if (disposed) return;
+      if (error) {
+        console.warn("Daily NEXUS updates could not load. Run daily_updates_setup.sql:", error.message);
+        return;
+      }
+      setDailyUpdates(data || []);
+    }
+    loadDailyUpdates();
+    const channel = supabase
+      .channel("nexus-daily-updates")
+      .on("postgres_changes", { event: "*", schema: "public", table: "nexus_daily_updates" }, loadDailyUpdates)
+      .subscribe();
+    return () => {
+      disposed = true;
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   async function saveSiteConfig(next) {
     if (!supabase || !session?.user || !isAdmin) throw new Error("Admin sign-in is required to save site settings.");
     setSiteConfigBusy(true);
     try {
+      const previousByName = new Map(siteGames.map(game => [(game.name || "").trim().toLowerCase(), game]));
+      const nextByName = new Map(next.games.map(game => [(game.name || "").trim().toLowerCase(), game]));
+      const activityItems = [];
+      for (const [key, game] of nextByName) {
+        if (!previousByName.has(key)) {
+          activityItems.push("Added game: " + game.name);
+          continue;
+        }
+        const before = previousByName.get(key);
+        const fields = [
+          ["externalUrl", "URL"], ["openUrl", "URL"], ["url", "URL"], ["htmlCode", "HTML embed"],
+          ["description", "description"], ["imageUrl", "thumbnail"], ["type", "category"],
+          ["mode", "player mode"], ["players", "player label"], ["icon", "icon"]
+        ];
+        const changed = [...new Set(fields.filter(([field]) => (before[field] || "") !== (game[field] || "")).map(([, label]) => label))];
+        if (changed.length) activityItems.push("Updated " + game.name + ": " + [...new Set(changed)].join(", "));
+      }
+      for (const [key, game] of previousByName) {
+        if (!nextByName.has(key)) activityItems.push("Removed game: " + game.name);
+      }
+      const oldAnnouncements = new Map(siteAnnouncements.map(item => [String(item.id || item.text || item), item]));
+      const newAnnouncements = new Map(next.announcements.map(item => [String(item.id || item.text || item), item]));
+      for (const [key, item] of newAnnouncements) if (!oldAnnouncements.has(key)) activityItems.push("Added announcement: " + (item.text || item));
+      for (const [key, item] of oldAnnouncements) if (!newAnnouncements.has(key)) activityItems.push("Removed announcement: " + (item.text || item));
+      const changedSettings = Object.keys(next.settings || {}).filter(key => (siteSettings[key] ?? null) !== (next.settings[key] ?? null));
+      if (changedSettings.length) activityItems.push("Changed community settings: " + changedSettings.join(", "));
+
       const { error } = await supabase.from("nexus_site_config").upsert({
         id: "main", games: next.games, announcements: next.announcements,
         settings: next.settings, updated_by: session.user.id, updated_at: new Date().toISOString()
       }, { onConflict: "id" });
       if (error) throw error;
       setSiteGames(next.games); setSiteAnnouncements(next.announcements); setSiteSettings(next.settings);
+
+      if (activityItems.length) {
+        const { error: activityError } = await supabase.from("nexus_admin_activity").insert({
+          user_id: session.user.id,
+          username,
+          activity_date: getPacificDateKey(),
+          title: "NEXUS site changes",
+          detail: activityItems.join(" • ").slice(0, 4000)
+        });
+        if (activityError) console.warn("NEXUS changes saved, but daily activity logging failed. Check daily_updates_setup.sql:", activityError.message);
+      }
       setNotice("NEXUS site content and settings saved.");
     } finally { setSiteConfigBusy(false); }
+  }
+
+  async function publishDailySummary() {
+    if (!supabase || !session?.user || !isAdmin) return;
+    const activityDate = getPacificDateKey();
+    const { data, error } = await supabase
+      .from("nexus_admin_activity")
+      .select("title, detail, created_at")
+      .eq("user_id", session.user.id)
+      .eq("activity_date", activityDate)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    if (!data?.length) return;
+
+    const items = data.map(row => {
+      const time = new Date(row.created_at).toLocaleTimeString("en-US", {
+        timeZone: "America/Los_Angeles", hour: "numeric", minute: "2-digit"
+      });
+      return time + " — " + row.detail;
+    });
+    const summary = "Today's NEXUS work: " + items.join(" | ");
+    const { error: summaryError } = await supabase.from("nexus_daily_updates").upsert({
+      user_id: session.user.id,
+      username,
+      activity_date: activityDate,
+      summary,
+      items,
+      updated_at: new Date().toISOString()
+    }, { onConflict: "user_id,activity_date" });
+    if (summaryError) throw summaryError;
+
+    const { data: refreshed, error: refreshError } = await supabase
+      .from("nexus_daily_updates")
+      .select("id, username, activity_date, summary, items, created_at, updated_at")
+      .order("activity_date", { ascending: false })
+      .limit(30);
+    if (!refreshError && refreshed) setDailyUpdates(refreshed);
   }
 
   async function uploadGameImage(file) {
@@ -515,7 +629,17 @@ export default function App() {
     localStorage.setItem("nexus_guest", name); setGuest(name); setAuthError("");
   }
   async function signOut() {
-    if (supabase && session) await supabase.auth.signOut();
+    if (supabase && session) {
+      if (isAdmin) {
+        try {
+          await publishDailySummary();
+        } catch (error) {
+          console.warn("NEXUS sign-out summary could not be published:", error.message);
+          window.alert("You are being signed out, but today's summary could not be published. Run nexus-hub/supabase/daily_updates_setup.sql in Supabase, then try again.");
+        }
+      }
+      await supabase.auth.signOut();
+    }
     localStorage.removeItem("nexus_guest"); setGuest(""); setProfile(null); setSession(null);
   }
   function sendMessage(e) {
@@ -710,7 +834,7 @@ export default function App() {
         {page === "rewards" && <RewardsPage username={username} stats={playerStats} activity={activityFeed} leaderboard={playerLeaderboard} loading={rewardsLoading} onClaimDaily={claimDailyChallenge} onChooseTheme={chooseTheme}/>}
         {page === "events" && <SeasonalEventsPage/>}
         {page === "suggest-games" && <GameSuggestionPage onSubmit={submitGameSuggestion}/>}
-        {page === "updates" && <UpdatesPage/>}
+        {page === "updates" && <UpdatesPage dailyUpdates={dailyUpdates}/>}
         {page === "bug-report" && <BugReportPage onSubmit={submitBugReport}/>}
         {page === "profile" && <div className="profile-editor-page"><div className="page-title-row"><div><div className="eyebrow">MAKE IT YOURS</div><h1>Edit your profile</h1><p className="muted">Change how your profile looks to the NEXUS community.</p></div><span className="live-tag"><UserRound size={14}/> PROFILE SETTINGS</span></div><ProfileEditor embedded draft={profileDraft} setDraft={setProfileDraft} onSave={saveProfile} onClose={() => setPage("features")} busy={profileBusy} error={profileError} file={profileFile} setFile={setProfileFile} username={username} avatarUrl={profile?.avatar_url || guestProfile?.avatar_url}/></div>}
         {page === "chat" && <ChatPage username={username} online={online} messages={messages} channel={channel} setChannel={setChannel} messageText={messageText} setMessageText={setMessageText} sendMessage={sendChatMessage} chatFile={chatFile} setChatFile={setChatFile} replyTo={replyTo} setReplyTo={setReplyTo} reactToMessage={reactToMessage} editMessage={editMessage} deleteMessage={deleteMessage} reportMessage={reportMessage}/>}
@@ -905,14 +1029,16 @@ function BugReportPage({ onSubmit }) {
  return <div className="page-content-inner"><div className="page-title-row"><div><div className="eyebrow">HELP IMPROVE NEXUS</div><h1>Report a bug</h1><p className="muted">Describe what went wrong and where you saw it. Please don't include private information.</p></div></div><section className="social-panel"><form className="site-manager-add" onSubmit={send}><label>Short title<input required minLength={3} maxLength={100} value={form.title} onChange={e=>setForm(v=>({...v,title:e.target.value}))} placeholder="Example: Game stays on a black screen"/></label><label>What happened?<textarea required minLength={8} maxLength={2000} rows={6} value={form.description} onChange={e=>setForm(v=>({...v,description:e.target.value}))} placeholder="What did you click, what did you expect, and what happened instead?"/></label><label>How serious is it?<select value={form.severity} onChange={e=>setForm(v=>({...v,severity:e.target.value}))}><option value="normal">Normal</option><option value="major">Major — feature is unusable</option><option value="minor">Minor — small visual or usability issue</option></select></label><button className="primary-btn" disabled={busy}>{busy?"Sending...":"Submit bug report"}</button></form></section></div>;
 }
 
-function UpdatesPage() {
+function UpdatesPage({ dailyUpdates = [] }) {
  const entries=[
-  {date:"November 4, 2026",type:"Fix",title:"Improved game launch handling",detail:"Chicken Royale now opens in a separate tab to accommodate its large Unity downloads. Web Dashers receives a targeted iframe permission adjustment."},
-  {date:"November 3, 2026",type:"Feature",title:"Game catalog improvements",detail:"Added Moto X3M and improved generated thumbnails for games without uploaded artwork."},
+  {date:"November 4, 2026",type:"Fix",title:"Improved game launch handling",detail:"Improved hosted-game embedding and game launch handling."},
+  {date:"November 3, 2026",type:"Feature",title:"Game catalog improvements",detail:"Added game catalog controls and improved game thumbnails."},
   {date:"November 3, 2026",type:"Fix",title:"Profile and navigation refinements",detail:"Improved profile controls, responsive layout, and navigation behavior."},
   {date:"November 2, 2026",type:"Feature",title:"NEXUS community features",detail:"Expanded chat, player profiles, game lobbies, rewards, and admin controls."}
  ];
- return <div className="page-content-inner"><div className="page-title-row"><div><div className="eyebrow">WHAT'S NEW</div><h1>Updates & bug fixes</h1><p className="muted">A running list of NEXUS changes and improvements.</p></div></div><section className="social-panel">{entries.map((item,i)=><article className="feature-list-item" key={i}><small>{item.date} · {item.type}</small><b>{item.title}</b><p>{item.detail}</p></article>)}</section></div>;
+ return <div className="page-content-inner"><div className="page-title-row"><div><div className="eyebrow">WHAT'S NEW</div><h1>Updates & bug fixes</h1><p className="muted">Daily summaries are published here when the administrator signs out.</p></div></div>
+ {dailyUpdates.length > 0 && <section className="social-panel"><h2>Daily work summaries</h2>{dailyUpdates.map(item=><article className="feature-list-item" key={item.id}><small>{new Date(item.activity_date+"T12:00:00Z").toLocaleDateString("en-US",{timeZone:"UTC"})} · Daily summary</small><b>{item.username || "NEXUS Admin"} — completed updates</b><p>{item.summary}</p>{Array.isArray(item.items)&&item.items.length>0&&<ul>{item.items.map((entry,index)=><li key={index}>{entry}</li>)}</ul>}</article>)}</section>}
+ <section className="social-panel"><h2>Project updates</h2>{entries.map((item,i)=><article className="feature-list-item" key={i}><small>{item.date} · {item.type}</small><b>{item.title}</b><p>{item.detail}</p></article>)}</section></div>;
 }
 
 function AdminPage({ stats, online, reports=[], updateReport, userReports=[], updateUserReport, bugReports=[], updateBugReport, gameSubmissions=[], reviewGameSubmission, games=[], announcements=[], settings={}, onSaveSiteConfig, onUploadImage, siteConfigBusy=false }) {
