@@ -211,32 +211,58 @@ export default function App() {
 
   useEffect(() => {
     if (!supabase) return;
-    supabase.from("nexus_site_config").select("games, announcements, settings").eq("id", "main").maybeSingle().then(({ data, error }) => {
-      if (error) { console.warn("NEXUS site config is not available yet:", error.message); return; }
-      if (data) {
-        if (Array.isArray(data.games) && data.games.length) setSiteGames(() => {
-          const missingStarterGames = starterGames.filter(game =>
-            ["basket random", "escape road 3", "moto x3m", "web dashers"].includes(game.name.toLowerCase()) &&
-            !data.games.some(savedGame => savedGame.name?.toLowerCase() === game.name.toLowerCase())
-          );
-          return [...data.games.map(game => {
-            const name = game.name?.toLowerCase();
-            if (name === "chicken royale") return { ...game, externalUrl: "/Skipper/classroom/index.html", openUrl: "", url: "", htmlCode: "", openMode: "embed", allowSameOrigin: true };
-            if (name === "basket random") {
-              const savedUrl = game.externalUrl || game.openUrl || game.url || "";
-              const isOldBasketRandomSource = !savedUrl || savedUrl.includes("bf1268dccb5d43e7970bb3edaa54afc8") || savedUrl.includes("twoplayergames.org/files/games/other/Basket_Random");
-              return isOldBasketRandomSource
-                ? { ...game, externalUrl: "https://app-197304.games.s3.yandex.net/197304/kj9rcykboy6eol5xnn250jesr7v0hoh1_brotli/index.html?sdk=%2Fsdk%2F_%2Fv2.b0917aca706232afb55d.js#origin=https%3A%2F%2Fyandex.com&app-id=197304&device-type=desktop", openUrl: "", url: "", htmlCode: "", imageUrl: "https://img.gamedistribution.com/bf1268dccb5d43e7970bb3edaa54afc8-512x512.jpeg", openMode: "embed", allowSameOrigin: true }
-                : { ...game, externalUrl: savedUrl, openUrl: "", url: "" };
-            }
-            if (name === "web dashers") return { ...game, externalUrl: "https://web-dashers.github.io/", openUrl: "", url: "", htmlCode: "", openMode: "embed", allowSameOrigin: false };
-            return game;
-          }), ...missingStarterGames];
-        });
-        if (Array.isArray(data.announcements)) setSiteAnnouncements(data.announcements);
-        if (data.settings && typeof data.settings === "object") setSiteSettings(old => ({ ...old, ...data.settings }));
+    let disposed = false;
+    let realtimeUpdated = false;
+
+    function applySiteConfig(data) {
+      if (!data || disposed) return;
+      // The saved list is authoritative, including an empty list. Do not restore
+      // starter games that an admin intentionally removed.
+      if (Array.isArray(data.games)) {
+        setSiteGames(data.games.map(game => {
+          const name = game.name?.toLowerCase();
+          if (name === "chicken royale") {
+            return { ...game, externalUrl: "/Skipper/classroom/index.html", openUrl: "", url: "", htmlCode: "", openMode: "embed", allowSameOrigin: true };
+          }
+          if (name === "basket random") {
+            const savedUrl = game.externalUrl || game.openUrl || game.url || "";
+            const isOldBasketRandomSource = !savedUrl || savedUrl.includes("bf1268dccb5d43e7970bb3edaa54afc8") || savedUrl.includes("twoplayergames.org/files/games/other/Basket_Random");
+            return isOldBasketRandomSource
+              ? { ...game, externalUrl: "https://app-197304.games.s3.yandex.net/197304/kj9rcykboy6eol5xnn250jesr7v0hoh1_brotli/index.html?sdk=%2Fsdk%2F_%2Fv2.b0917aca706232afb55d.js#origin=https%3A%2F%2Fyandex.com&app-id=197304&device-type=desktop", openUrl: "", url: "", htmlCode: "", imageUrl: "https://img.gamedistribution.com/bf1268dccb5d43e7970bb3edaa54afc8-512x512.jpeg", openMode: "embed", allowSameOrigin: true }
+              : { ...game, externalUrl: savedUrl, openUrl: "", url: "" };
+          }
+          if (name === "web dashers") return { ...game, externalUrl: "https://web-dashers.github.io/", openUrl: "", url: "", htmlCode: "", openMode: "embed", allowSameOrigin: false };
+          return game;
+        }));
       }
+      if (Array.isArray(data.announcements)) setSiteAnnouncements(data.announcements);
+      if (data.settings && typeof data.settings === "object") setSiteSettings(old => ({ ...old, ...data.settings }));
+    }
+
+    const channel = supabase
+      .channel("nexus-site-config-sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "nexus_site_config", filter: "id=eq.main" }, payload => {
+        if (payload.new) {
+          realtimeUpdated = true;
+          applySiteConfig(payload.new);
+        }
+      })
+      .subscribe();
+
+    supabase.from("nexus_site_config").select("games, announcements, settings").eq("id", "main").maybeSingle().then(({ data, error }) => {
+      if (disposed) return;
+      if (error) {
+        console.warn("NEXUS site config is not available yet:", error.message);
+        return;
+      }
+      // A live change may have arrived while the initial request was in flight.
+      if (!realtimeUpdated && data) applySiteConfig(data);
     });
+
+    return () => {
+      disposed = true;
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   async function saveSiteConfig(next) {
