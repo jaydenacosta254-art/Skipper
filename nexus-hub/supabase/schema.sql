@@ -274,3 +274,18 @@ create policy "Admins publish their own NEXUS daily updates" on public.nexus_dai
 drop policy if exists "Admins update their own NEXUS daily updates" on public.nexus_daily_updates;
 create policy "Admins update their own NEXUS daily updates" on public.nexus_daily_updates for update to authenticated using (auth.uid() = user_id and exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')) with check (auth.uid() = user_id and exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'));
 do $$ begin if exists (select 1 from pg_publication where pubname = 'supabase_realtime') and not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'nexus_daily_updates') then execute 'alter publication supabase_realtime add table public.nexus_daily_updates'; end if; end $$;
+
+-- Enable Supabase Realtime for shared site settings so open devices receive
+-- game catalog, URL, announcement, and community-setting changes immediately.
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
+     and not exists (
+       select 1 from pg_publication_tables
+       where pubname = 'supabase_realtime'
+         and schemaname = 'public'
+         and tablename = 'nexus_site_config'
+     ) then
+    execute 'alter publication supabase_realtime add table public.nexus_site_config';
+  end if;
+end $$;
