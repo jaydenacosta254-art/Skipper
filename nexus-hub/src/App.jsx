@@ -99,9 +99,9 @@ const starterGames = [
     mode: "single",
     color: "orange",
     icon: "🏀",
-    imageUrl: "https://images.twoplayergames.org/files/games/other/Basket_Random/basket-random.jpg?auto=format&w=200",
-    description: "Play chaotic physics-based basketball matches in Basket Random.",
-    externalUrl: "https://files.twoplayergames.org/files/games/other/Basket_Random/index.html",
+    imageUrl: "https://img.gamedistribution.com/bf1268dccb5d43e7970bb3edaa54afc8-512x512.jpeg",
+    description: "Play chaotic physics-based basketball matches against the CPU or a friend.",
+    externalUrl: "https://html5.gamedistribution.com/bf1268dccb5d43e7970bb3edaa54afc8/",
     openMode: "embed",
     allowSameOrigin: true
   },
@@ -222,6 +222,7 @@ export default function App() {
           return [...data.games.map(game => {
             const name = game.name?.toLowerCase();
             if (name === "chicken royale") return { ...game, externalUrl: "/Skipper/classroom/index.html", openUrl: "", url: "", htmlCode: "", openMode: "embed", allowSameOrigin: true };
+            if (name === "basket random") return { ...game, externalUrl: "https://html5.gamedistribution.com/bf1268dccb5d43e7970bb3edaa54afc8/", openUrl: "", url: "", htmlCode: "", imageUrl: "https://img.gamedistribution.com/bf1268dccb5d43e7970bb3edaa54afc8-512x512.jpeg", openMode: "embed", allowSameOrigin: true };
             if (name === "web dashers") return { ...game, externalUrl: "https://web-dashers.github.io/", openUrl: "", url: "", htmlCode: "", openMode: "embed", allowSameOrigin: false };
             return game;
           }), ...missingStarterGames];
