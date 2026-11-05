@@ -64,8 +64,14 @@ io.on("connection", (socket) => {
     const { channel, username, text } = payload;
     const message = String(text || "").trim().slice(0, 1000);
     const room = String(channel || "general").slice(0, 40);
-    if (!message) return;
-    const item = { id: randomBytes(8).toString("hex"), username: String(username || "Guest").slice(0,24), text: message, attachment: payload.attachment || null, replyTo: payload.replyTo || null, reactions: {}, edited: false, at: Date.now() };
+    const rawAttachment = payload.attachment;
+    const attachmentUrl = String(rawAttachment?.url || "");
+    const attachment = rawAttachment && attachmentUrl.startsWith("https://")
+      ? { name: String(rawAttachment.name || "Attachment").slice(0, 120), url: attachmentUrl.slice(0, 2048) }
+      : null;
+    // Attachments can be sent without accompanying text.
+    if (!message && !attachment) return;
+    const item = { id: randomBytes(8).toString("hex"), username: String(username || "Guest").slice(0,24), text: message, attachment, replyTo: payload.replyTo || null, reactions: {}, edited: false, at: Date.now() };
     const history = chatMessages.get(room) || [];
     history.push(item);
     chatMessages.set(room, history.slice(-100));
