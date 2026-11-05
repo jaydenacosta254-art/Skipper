@@ -19,3 +19,18 @@ create policy "Admins manage NEXUS site config" on public.nexus_site_config
 grant select on public.nexus_site_config to anon, authenticated;
 grant insert, update, delete on public.nexus_site_config to authenticated;
 notify pgrst, 'reload schema';
+
+-- Enable Supabase Realtime for shared site settings so open devices receive
+-- game catalog, URL, announcement, and community-setting changes immediately.
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
+     and not exists (
+       select 1 from pg_publication_tables
+       where pubname = 'supabase_realtime'
+         and schemaname = 'public'
+         and tablename = 'nexus_site_config'
+     ) then
+    execute 'alter publication supabase_realtime add table public.nexus_site_config';
+  end if;
+end $$;
