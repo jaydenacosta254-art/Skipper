@@ -7,7 +7,7 @@ A customizable full-stack starter for a gaming/community website. Built with Rea
 - Responsive dark UI with animated hero section and page navigation
 - Sign up / sign in with Supabase Auth
 - Guest mode for trying the UI without configuring Supabase
-- Community chat with Socket.IO (live while connected)
+- Community chat with Socket.IO, verified signed-in identities, owner-checked edits/deletes, and Supabase-persisted history
 - Online presence list
 - Create and join lobby-code rooms
 - Host-controlled lobby start event
@@ -36,6 +36,9 @@ A customizable full-stack starter for a gaming/community website. Built with Rea
    ```env
    VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
    VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+   SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+   SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+   SUPABASE_SERVICE_ROLE_KEY=YOUR_PRIVATE_SERVER_ONLY_KEY
    PORT=3001
    CLIENT_ORIGIN=http://localhost:5173
    ```
@@ -57,6 +60,7 @@ A customizable full-stack starter for a gaming/community website. Built with Rea
 - Find the Project URL and anon/public key in Project Settings → API.
 - Enable Email authentication under Authentication → Providers.
 - Run `supabase/schema.sql`.
+- If your database already has the main schema, run `supabase/chat_persistence_setup.sql` to create the persistent chat table.
 - Sign up through the site. If email confirmation is enabled, confirm your email.
 - To make your account an admin, run this in Supabase SQL Editor, replacing the username:
 
@@ -92,7 +96,10 @@ nexus-hub/
 This project uses WebSockets, so deploy the Node server on a host that supports persistent Node processes and WebSocket connections. A static-only host cannot run `server/index.js`.
 
 - Set `CLIENT_ORIGIN` to your deployed frontend origin.
-- Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the frontend build environment.
+- Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the frontend build environment (GitHub Actions secrets).
+- Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` on the Node server (Render) so it can verify access tokens.
+- Set `SUPABASE_SERVICE_ROLE_KEY` on Render so the server can persist chat messages. This key must stay server-side and must never be added to GitHub, Vite variables, or browser code.
+- Run `supabase/chat_persistence_setup.sql` in the Supabase SQL Editor if the chat table is not already present.
 - Set `PORT` if your host requires it.
 - If frontend and backend are on different domains, set `VITE_SERVER_URL` to the backend origin in the frontend environment and configure CORS for the exact frontend origin.
 
@@ -117,12 +124,11 @@ git push -u origin main
 
 ## Important limitations / next steps
 
-This is a working starter foundation, not a production Discord replacement:
-- Chat and lobby state currently live in server memory. Restarting the server clears them.
-- Chat history is not persisted yet.
-- Lobby membership is a starter implementation; add authenticated socket identity, reconnect handling, rate limits, and server-side validation before public launch.
-- The sample game catalog is UI only; implement each actual game separately.
-- Add moderation/reporting, message filtering, abuse prevention, logging, backups, and deployment secrets before opening it to the public.
+This is a community project, not a production Discord replacement:
+- Chat history is stored in Supabase and survives server restarts. Chat persistence requires the server-only Supabase service-role key to be configured on Render.
+- Signed-in chat identities are checked against Supabase Auth. Message edits and deletes are restricted to the original account; guests receive separate guest identities.
+- Lobby state is still held in server memory and is not yet backed by persistent storage. Lobby events should receive the same server-side identity and ownership checks before public launch.
+- Add stronger rate limits, moderation tools, logging, backups, and operational monitoring before opening the service to a large public audience.
 - Use HTTPS in production and never put a Supabase service-role key in frontend code.
 
 ## Customize it
