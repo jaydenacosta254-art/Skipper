@@ -241,10 +241,11 @@ export default function App() {
           }
           if (name === "basket random") {
             const savedUrl = game.externalUrl || game.openUrl || game.url || "";
-            const isOldBasketRandomSource = !savedUrl || savedUrl.includes("bf1268dccb5d43e7970bb3edaa54afc8") || savedUrl.includes("twoplayergames.org/files/games/other/Basket_Random");
-            return isOldBasketRandomSource
-              ? { ...game, externalUrl: "https://app-197304.games.s3.yandex.net/197304/kj9rcykboy6eol5xnn250jesr7v0hoh1_brotli/index.html?sdk=%2Fsdk%2F_%2Fv2.b0917aca706232afb55d.js#origin=https%3A%2F%2Fyandex.com&app-id=197304&device-type=desktop", openUrl: "", url: "", htmlCode: "", imageUrl: "https://img.gamedistribution.com/bf1268dccb5d43e7970bb3edaa54afc8-512x512.jpeg", openMode: "embed", allowSameOrigin: true }
-              : { ...game, externalUrl: savedUrl, openUrl: "", url: "" };
+            const hasSavedHtml = Boolean(game.htmlCode?.trim());
+            const isLegacyUrl = savedUrl.includes("bf1268dccb5d43e7970bb3edaa54afc8") || savedUrl.includes("twoplayergames.org/files/games/other/Basket_Random");
+            if (savedUrl && !isLegacyUrl) return { ...game, externalUrl: savedUrl, openUrl: "", url: "" };
+            if (!savedUrl && hasSavedHtml) return { ...game, externalUrl: "", openUrl: "", url: "", openMode: "embed" };
+            return { ...game, externalUrl: "https://app-197304.games.s3.yandex.net/197304/kj9rcykboy6eol5xnn250jesr7v0hoh1_brotli/index.html?sdk=%2Fsdk%2F_%2Fv2.b0917aca706232afb55d.js#origin=https%3A%2F%2Fyandex.com&app-id=197304&device-type=desktop", openUrl: "", url: "", htmlCode: "", imageUrl: "https://img.gamedistribution.com/bf1268dccb5d43e7970bb3edaa54afc8-512x512.jpeg", openMode: "embed", allowSameOrigin: true };
           }
           if (name === "web dashers") {
             const savedUrl = game.externalUrl || game.openUrl || game.url || "";
