@@ -122,10 +122,12 @@ io.use(async (socket, next) => {
     if (accessToken) {
       socket.data.identity = await verifySupabaseUser(accessToken);
     } else {
+      const requestedName = cleanDisplayName(socket.handshake.auth?.guestName || "Guest");
       socket.data.identity = {
         userId: null,
         guestId: randomUUID(),
-        username: cleanDisplayName(socket.handshake.auth?.guestName || "Guest")
+        // Make guest status visible so a guest cannot appear to be a registered account.
+        username: cleanDisplayName("Guest " + requestedName)
       };
     }
     next();
@@ -170,6 +172,9 @@ io.on("connection", (socket) => {
   socket.on("chat:message", async (payload = {}) => {
     if (!supabaseAdmin) return socket.emit("chat:error", "Chat storage is not configured on the NEXUS server yet.");
     const identity = socket.data.identity;
+    const now = Date.now();
+    if (now - (socket.data.lastChatMessageAt || 0) < 500) return;
+    socket.data.lastChatMessageAt = now;
     const body = String(payload.text || "").trim().slice(0, 1000);
     const room = cleanChannel(payload.channel);
     const rawAttachment = payload.attachment;
