@@ -106,7 +106,7 @@ export default function NexusSiteManager({ games = [], announcements = [], setti
         
         <input type="url" placeholder="Game URL (takes priority over HTML)" value={newGame.externalUrl} onChange={e=>setNewGame(old=>({...old,externalUrl:e.target.value,htmlCode:e.target.value.trim()?"":old.htmlCode,openMode:"embed"}))}/>
         <textarea className="site-manager-description" rows={7} spellCheck={false} placeholder="Or paste the full HTML game code here..." value={newGame.htmlCode} onChange={e=>setNewGame(old=>({...old,htmlCode:e.target.value,externalUrl:e.target.value.trim()?"":old.externalUrl,openMode:"embed"}))}/>
-        <p className="muted site-manager-embed-note">New games open inside NEXUS. A URL takes priority and clears pasted HTML; pasting HTML clears the URL so the two sources cannot conflict.</p>
+        <p className="muted site-manager-embed-note">New games open inside NEXUS. Use either a game URL or pasted HTML; entering one clears the other so the wrong version cannot load.</p>
         <input className="site-manager-description" placeholder="Description" value={newGame.description} onChange={e=>setNewGame({...newGame,description:e.target.value})}/>
       </div><button className="secondary-btn"><Plus size={15}/> Add game</button></form>
     </section>
