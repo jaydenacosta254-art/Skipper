@@ -114,7 +114,7 @@ const starterGames = [
     imageUrl: "https://web-dashers.github.io/wd_assets/thumbnail_1024.png",
     description: "Play the fan-made Geometry Dash browser mod, create levels, and explore online levels.",
     externalUrl: "https://web-dashers.github.io/",
-    openMode: "new-tab"
+    openMode: "embed"
   },
   {
     name: "Basket Bros",
@@ -221,7 +221,7 @@ export default function App() {
           return [...data.games.map(game => {
             const name = game.name?.toLowerCase();
             if (name === "chicken royale") return { ...game, openMode: "new-tab" };
-            if (name === "web dashers") return { ...game, externalUrl: "https://web-dashers.github.io/", openUrl: "", url: "", htmlCode: "", openMode: "new-tab", allowSameOrigin: false };
+            if (name === "web dashers") return { ...game, externalUrl: "https://web-dashers.github.io/", openUrl: "", url: "", htmlCode: "", openMode: "embed", allowSameOrigin: false };
             return game;
           }), ...missingStarterGames];
         });
