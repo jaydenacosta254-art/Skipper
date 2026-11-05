@@ -780,13 +780,19 @@ export default function App() {
 
 
   async function savePlayerStats(next) {
+    const previous = playerStats;
     setPlayerStats(next);
     if (!session?.user || !supabase) {
       localStorage.setItem("nexus_player_stats_" + username.toLowerCase(), JSON.stringify(next));
-      return;
+      return true;
     }
     const { error } = await supabase.from("nexus_player_stats").upsert({ user_id: session.user.id, username, ...next, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
-    if (error) setNotice("Rewards could not sync. Run the NEXUS rewards SQL setup in Supabase.");
+    if (error) {
+      setPlayerStats(previous);
+      setNotice("Rewards could not sync. Your previous XP total was kept. Check the NEXUS rewards SQL setup in Supabase.");
+      return false;
+    }
+    return true;
   }
   async function recordGame(gameName) {
     const key = "nexus_played_today_" + username.toLowerCase();
@@ -797,7 +803,13 @@ export default function App() {
     played[gameName] = today;
     localStorage.setItem(key, JSON.stringify(played));
     const xp = (playerStats.xp || 0) + 10;
-    await savePlayerStats({ ...playerStats, xp, level: Math.floor(xp / 100) + 1, games_played: (playerStats.games_played || 0) + 1 });
+    const saved = await savePlayerStats({ ...playerStats, xp, level: Math.floor(xp / 100) + 1, games_played: (playerStats.games_played || 0) + 1 });
+    if (!saved) {
+      delete played[gameName];
+      if (Object.keys(played).length) localStorage.setItem(key, JSON.stringify(played));
+      else localStorage.removeItem(key);
+      return;
+    }
     const activity = { username, activity_type: "played", detail: "Played " + gameName, created_at: new Date().toISOString() };
     setActivityFeed(old => [activity, ...old].slice(0,12));
     if (session?.user && supabase) await supabase.from("nexus_game_activity").insert({ user_id: session.user.id, ...activity });
@@ -807,7 +819,8 @@ export default function App() {
     const today = new Date().toISOString().slice(0,10);
     if (playerStats.daily_claim_date === today) return setNotice("You already claimed today's challenge reward.");
     const xp = (playerStats.xp || 0) + 25;
-    await savePlayerStats({ ...playerStats, xp, level: Math.floor(xp / 100) + 1, daily_claim_date: today });
+    const saved = await savePlayerStats({ ...playerStats, xp, level: Math.floor(xp / 100) + 1, daily_claim_date: today });
+    if (!saved) return;
     const activity = { username, activity_type: "challenge", detail: "Completed the daily NEXUS challenge", created_at: new Date().toISOString() };
     setActivityFeed(old => [activity, ...old].slice(0,12));
     if (session?.user && supabase) await supabase.from("nexus_game_activity").insert({ user_id: session.user.id, ...activity });
