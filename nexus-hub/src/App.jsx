@@ -54,7 +54,8 @@ const starterGames = [
     icon: "🏫",
     description: "Drop into Chicken Royale and battle to be the last player standing.",
     externalUrl: "/Skipper/classroom/index.html",
-    openMode: "new-tab"
+    openMode: "embed",
+    allowSameOrigin: true
   },
   {
     name: "OpenGuessr",
@@ -220,7 +221,7 @@ export default function App() {
           );
           return [...data.games.map(game => {
             const name = game.name?.toLowerCase();
-            if (name === "chicken royale") return { ...game, openMode: "new-tab" };
+            if (name === "chicken royale") return { ...game, externalUrl: "/Skipper/classroom/index.html", openUrl: "", url: "", htmlCode: "", openMode: "embed", allowSameOrigin: true };
             if (name === "web dashers") return { ...game, externalUrl: "https://web-dashers.github.io/", openUrl: "", url: "", htmlCode: "", openMode: "embed", allowSameOrigin: false };
             return game;
           }), ...missingStarterGames];
