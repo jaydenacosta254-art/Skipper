@@ -47,7 +47,7 @@ export default function NexusWorld({
   isAdmin = false, onOpenGames = () => {}, onPlayGame = null, onProfileUpdate = () => {}, setNotice = () => {}
 }) {
   const userId = session?.user?.id;
-  const playable = useMemo(() => games.filter(game => game.externalUrl), [games]);
+  const playable = useMemo(() => games.filter(game => game.externalUrl || game.htmlCode?.trim()), [games]);
   const dailyGame = playable[dayIndex(Math.max(playable.length, 1))] || games[0];
   const weeklyGame = playable[weekIndex(Math.max(playable.length, 1))] || dailyGame;
   const [tab, setTab] = useState("arcade");
