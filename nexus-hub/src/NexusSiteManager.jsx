@@ -25,7 +25,9 @@ export default function NexusSiteManager({ games = [], announcements = [], setti
       externalUrl: url,
       openUrl: "",
       url: "",
-      htmlCode: url ? "" : htmlCode,
+      // Keep the selected content type intact. The form clears the other field
+      // as the admin types, but this also safely handles pasted HTML or a URL.
+      htmlCode: htmlCode && !url ? htmlCode : "",
       openMode: "embed"
     }]);
     setNewGame({ name:"", type:"Action", players:"Single-player", mode:"single", color:"blue", icon:"🎮", imageUrl:"", description:"", externalUrl:"", htmlCode:"", openMode:"embed" });
@@ -74,7 +76,9 @@ export default function NexusSiteManager({ games = [], announcements = [], setti
     const normalizedGames = draftGames.map(g => {
       const url = String(g.externalUrl || g.openUrl || g.url || "").trim();
       const htmlCode = String(g.htmlCode || "").trim();
-      return { ...g, externalUrl:url, openUrl:"", url:"", htmlCode:url ? "" : htmlCode };
+      // URL and HTML are alternative launch sources. Preserve the one provided
+      // and avoid silently saving an empty game if the other field is blank.
+      return { ...g, externalUrl:url, openUrl:"", url:"", htmlCode:!url ? htmlCode : "" };
     });
     if (normalizedGames.some(g => !g.name?.trim() || (!g.externalUrl && !g.htmlCode))) return setError("Every game needs a name and either a URL or HTML code.");
     try {
