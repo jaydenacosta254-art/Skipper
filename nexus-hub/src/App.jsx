@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import {
   Activity, ArrowRight, Bell, ChevronDown, CircleHelp, Gamepad2, Gauge, Globe,
@@ -140,7 +140,7 @@ const starterGames = [
   }
 ];;
 
-const PROFILE_BACKGROUNDS = {
+// Hidden game frames stay alive after preloading and are reused on launch.\nconst nexusPreloadedGameFrames = new Map();\nlet nexusPreloadContainer = null;\n\nconst PROFILE_BACKGROUNDS = {
   violet: "linear-gradient(135deg, #6546b8, #24224f)",
   sunset: "linear-gradient(135deg, #e47761, #68418e)",
   ocean: "linear-gradient(135deg, #167b9e, #21365e)",
@@ -218,21 +218,24 @@ export default function App() {
   const [siteConfigBusy, setSiteConfigBusy] = useState(false);
   const [dailyUpdates, setDailyUpdates] = useState([]);
 
-  // Warm the game library as soon as NEXUS receives its game list. Images and
-  // network connections are prepared first; a small number of hidden game
-  // frames then warm their browser cache without opening visible game windows.
+  // Preload every configured game in a small queue. Keep each iframe alive
+  // after it loads so opening a game can reuse the already-running page.
   useEffect(() => {
     if (!Array.isArray(siteGames) || !siteGames.length) return;
     let cancelled = false;
-    const warmFrames = [];
     const links = [];
-    const urls = siteGames
-      .map(game => game.externalUrl || game.openUrl || game.url || "")
-      .filter(Boolean);
+    const frames = [];
+    const container = document.createElement("div");
+    container.setAttribute("aria-hidden", "true");
+    container.style.cssText = "position:fixed;left:-12000px;top:0;width:2px;height:2px;overflow:hidden;opacity:0;pointer-events:none;";
+    document.body.appendChild(container);
+    nexusPreloadContainer = container;
+    nexusPreloadedGameFrames.clear();
+
+    const urls = siteGames.map(game => game.externalUrl || game.openUrl || game.url || "").filter(Boolean);
     const origins = [...new Set(urls.map(value => {
       try { return new URL(value, window.location.href).origin; } catch { return ""; }
     }).filter(origin => origin && origin !== window.location.origin))];
-
     origins.forEach(origin => {
       const link = document.createElement("link");
       link.rel = "preconnect";
@@ -243,11 +246,10 @@ export default function App() {
     });
 
     siteGames.forEach(game => {
-      const imageUrl = game.imageUrl;
-      if (imageUrl) {
+      if (game.imageUrl) {
         const image = new Image();
         image.decoding = "async";
-        image.src = imageUrl;
+        image.src = game.imageUrl;
       }
     });
 
@@ -255,33 +257,41 @@ export default function App() {
       (game.externalUrl || game.openUrl || game.url || "").trim() || game.htmlCode?.trim()
     );
     let cursor = 0;
-    const active = new Set();
+    let active = 0;
     const launchNext = () => {
-      if (cancelled || cursor >= candidates.length || active.size >= 3) return;
+      if (cancelled || cursor >= candidates.length || active >= 2) return;
       const game = candidates[cursor++];
+      const key = String(game.id || game.name || cursor);
+      const url = game.externalUrl || game.openUrl || game.url || "";
       const frame = document.createElement("iframe");
-      frame.title = "NEXUS preload: " + (game.name || "game");
+      frame.title = "NEXUS game: " + (game.name || "game");
       frame.tabIndex = -1;
-      frame.setAttribute("aria-hidden", "true");
-      frame.setAttribute("sandbox", game.allowSameOrigin === true
-        ? "allow-scripts allow-same-origin allow-forms allow-pointer-lock"
-        : "allow-scripts allow-forms allow-pointer-lock");
-      frame.style.cssText = "position:fixed;left:-10000px;top:0;width:2px;height:2px;opacity:0;pointer-events:none;border:0;";
-      active.add(frame);
-      warmFrames.push(frame);
-      document.body.appendChild(frame);
+      frame.setAttribute("sandbox", /^https:\/\/html5\.gamedistribution\.com\//i.test(url)
+        ? "allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-popups"
+        : game.allowSameOrigin === true
+          ? "allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-popups"
+          : "allow-scripts allow-forms allow-pointer-lock allow-popups");
+      frame.setAttribute("allow", "fullscreen; autoplay; gamepad");
+      frame.style.cssText = "width:2px;height:2px;border:0;display:block;";
+      frame.dataset.nexusPreloaded = "true";
+      frame.dataset.nexusGameKey = key;
+      nexusPreloadedGameFrames.set(key, frame);
+      frames.push(frame);
+      container.appendChild(frame);
+      active += 1;
       let finished = false;
-      const finish = () => {
+      const finishQueueSlot = () => {
         if (finished) return;
         finished = true;
-        active.delete(frame);
-        frame.remove();
+        active -= 1;
         if (!cancelled) launchNext();
       };
-      frame.addEventListener("load", finish, { once: true });
-      const timeout = window.setTimeout(finish, 9000);
-      frame.addEventListener("load", () => window.clearTimeout(timeout), { once: true });
-      const url = game.externalUrl || game.openUrl || game.url || "";
+      frame.addEventListener("load", () => {
+        frame.dataset.nexusLoaded = "true";
+        finishQueueSlot();
+      }, { once: true });
+      // If a site blocks embedding and never fires load, continue with the queue.
+      window.setTimeout(finishQueueSlot, 10000);
       if (url) frame.src = url;
       else frame.srcdoc = game.htmlCode;
     };
@@ -290,18 +300,20 @@ export default function App() {
       if (cancelled) return;
       launchNext();
       launchNext();
-      launchNext();
     };
     let idleId;
     let timerId;
-    if ("requestIdleCallback" in window) idleId = window.requestIdleCallback(start, { timeout: 1800 });
-    else timerId = window.setTimeout(start, 900);
+    if ("requestIdleCallback" in window) idleId = window.requestIdleCallback(start, { timeout: 1200 });
+    else timerId = window.setTimeout(start, 500);
 
     return () => {
       cancelled = true;
       if (idleId && "cancelIdleCallback" in window) window.cancelIdleCallback(idleId);
       if (timerId) window.clearTimeout(timerId);
-      warmFrames.forEach(frame => frame.remove());
+      frames.forEach(frame => frame.remove());
+      nexusPreloadedGameFrames.clear();
+      container.remove();
+      if (nexusPreloadContainer === container) nexusPreloadContainer = null;
       links.forEach(link => link.remove());
     };
   }, [siteGames]);
@@ -1035,8 +1047,43 @@ function GameCard({ game, onClick }) { const Icon=gameIconMap[game.name]||Gamepa
 
 function GamesPage({ games = starterGames, allowGameSubmissions = true, rooms, myLobby, lobbyCode, setLobbyCode, lobbyError, createLobby, joinLobby, leaveLobby, startLobby, session, socket, username, recordGame, gameToOpen, onGameOpenHandled }) {
   const [category,setCategory]=useState("All"),[search,setSearch]=useState(""),[recent,setRecent]=useState(()=>{try{return JSON.parse(localStorage.getItem("nexus_recent_games")||"[]")}catch{return[]}}),[favorites,setFavorites]=useState(()=>{try{return JSON.parse(localStorage.getItem("nexus_favorite_games")||"[]")}catch{return[]}}),[selected,setSelected]=useState(null),[embeddedGame,setEmbeddedGame]=useState(null),[activeMini,setActiveMini]=useState(null),[activeGame,setActiveGame]=useState(null),[gameState,setGameState]=useState(null),[answer,setAnswer]=useState(""),[submitOpen,setSubmitOpen]=useState(false),[submission,setSubmission]=useState({name:"",url:"",description:"",category:"Action"}),[submitMessage,setSubmitMessage]=useState(""),[leaderboard,setLeaderboard]=useState([]);
-  const [gameLoadState,setGameLoadState]=useState("loading");
+  const [gameLoadState,setGameLoadState]=useState("loading");\n  const gameFrameHostRef = useRef(null);
   useEffect(()=>{if(!embeddedGame)return;setGameLoadState("loading");const timer=setTimeout(()=>setGameLoadState(current=>current==="loaded"?"loaded":"slow"),12000);return()=>clearTimeout(timer);},[embeddedGame]);
+  useEffect(() => {
+    if (!embeddedGame || !gameFrameHostRef.current) return;
+    const key = String(embeddedGame.id || embeddedGame.name || "");
+    const url = gameUrl(embeddedGame);
+    let frame = nexusPreloadedGameFrames.get(key);
+    if (!frame) {
+      frame = document.createElement("iframe");
+      frame.title = embeddedGame.name || "NEXUS game";
+      frame.setAttribute("sandbox", /^https:\/\/html5\.gamedistribution\.com\//i.test(url)
+        ? "allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-popups"
+        : gameNeedsSameOrigin(embeddedGame)
+          ? "allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-popups"
+          : "allow-scripts allow-forms allow-pointer-lock allow-popups");
+      frame.setAttribute("allow", "fullscreen; autoplay; gamepad");
+      frame.referrerPolicy = "strict-origin-when-cross-origin";
+      if (url) frame.src = url;
+      else frame.srcdoc = embeddedGame.htmlCode || "";
+      nexusPreloadedGameFrames.set(key, frame);
+    }
+    frame.title = embeddedGame.name || "NEXUS game";
+    frame.tabIndex = 0;
+    frame.style.cssText = "display:block;width:100%;height:100%;min-height:520px;border:0;";
+    const onLoad = () => { frame.dataset.nexusLoaded = "true"; setGameLoadState("loaded"); };
+    frame.addEventListener("load", onLoad);
+    gameFrameHostRef.current.appendChild(frame);
+    if (frame.dataset.nexusLoaded === "true") setGameLoadState("loaded");
+    return () => {
+      frame.removeEventListener("load", onLoad);
+      if (nexusPreloadContainer && frame.isConnected) {
+        frame.tabIndex = -1;
+        frame.style.cssText = "width:2px;height:2px;border:0;display:block;";
+        nexusPreloadContainer.appendChild(frame);
+      }
+    };
+  }, [embeddedGame]);
   const categories=["All",...new Set(games.map(g=>g.type))];
   const visible=games.filter(g=>(category==="All"||g.type===category)&&((g.name+" "+g.description).toLowerCase().includes(search.toLowerCase())));
   const multiplayerGames=visible.filter(g=>g.mode==="multiplayer"||g.mode==="external-multiplayer"||g.name==="Party Arena");
@@ -1073,7 +1120,7 @@ function GamesPage({ games = starterGames, allowGameSubmissions = true, rooms, m
     </section>
     {recent.length>0&&<section className="game-section"><h2>Continue playing</h2><div className="recent-games">{recent.map(n=>{const g=games.find(x=>x.name===n);return g?<button key={n} onClick={()=>openGame(g)}>{g.name}</button>:null;})}</div></section>}
     <div className="games-lower-grid"><section className="join-panel"><div className="panel-icon"><Hash/></div><h2>Join a friend's lobby</h2><p>Enter a lobby code or join a public room. Private rooms stay out of the public list.</p><button className="secondary-btn full" onClick={()=>createLobby("Party Arena",true)}>Create private Party Arena room</button><input className="code-input" value={lobbyCode} onChange={e=>setLobbyCode(e.target.value.toUpperCase())} placeholder="E.G. A4B29F" maxLength={12}/><button className="primary-btn full" onClick={()=>joinLobby(lobbyCode)}>Join lobby <ArrowRight size={16}/></button><div className="join-divider"/><div className="eyebrow">PUBLIC LOBBIES <span className="count">{rooms.length}</span></div>{rooms.length?rooms.map(r=><div className="room-row" key={r.code}><div className="room-avatar">🎮</div><div><b>{r.game}</b><small>{r.players.length} players · {r.code}</small></div><button onClick={()=>joinLobby(r.code)}>Join</button></div>):<div className="empty-small">No public lobbies yet. Create one!</div>}</section><section className="join-panel"><div className="panel-icon"><Trophy/></div><h2>Leaderboard</h2><p>Top scores submitted by players.</p>{leaderboard.length?leaderboard.map((r,i)=><div className="room-row" key={i}><b>#{i+1} {r.username}</b><small>{r.game_name}</small><strong>{r.score}</strong></div>):<div className="empty-small">No scores yet. Scores will appear when games report them.</div>}</section></div>
-    {embeddedGame&&<div className="external-game-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setEmbeddedGame(null)}}><section className="external-game-shell"><header><div><b><EmbeddedIcon size={16}/> {embeddedGame.name}</b><span>{embeddedGame.htmlCode?.trim()?"Custom HTML game":`External game · ${embeddedGame.mode==="external-multiplayer"?"multiplayer":"single-player"}`}</span></div><div className="external-game-actions">{gameUrl(embeddedGame)&&<button className="primary-btn" onClick={()=>window.open(gameUrl(embeddedGame),"_blank","noopener,noreferrer")}>Open in new tab <ArrowRight size={14}/></button>}<button className="secondary-btn" onClick={()=>document.getElementById("nexus-external-game")?.requestFullscreen?.()}>Fullscreen</button><button className="quiet-btn" onClick={()=>setEmbeddedGame(null)}>Close</button></div></header><iframe id="nexus-external-game" src={gameUrl(embeddedGame)||undefined} srcDoc={!gameUrl(embeddedGame) ? (embeddedGame.htmlCode?.trim()||undefined) : undefined} title={embeddedGame.name} onLoad={()=>setGameLoadState("loaded")} sandbox={/^https:\/\/html5\.gamedistribution\.com\//i.test(gameUrl(embeddedGame)) ? undefined : gameNeedsSameOrigin(embeddedGame) ? "allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-popups" : "allow-scripts allow-forms allow-pointer-lock allow-popups"} allow="fullscreen; autoplay; gamepad" allowFullScreen referrerPolicy="strict-origin-when-cross-origin"/>{gameLoadState==="loading"&&<p className="game-load-status">Loading {embeddedGame.name}… Some games need a few seconds to start.</p>}{gameLoadState==="slow"&&<p className="game-load-status game-load-warning">This game is taking longer than expected or may block embedding. Use “Open in new tab” above to try it directly.</p>}{gameLoadState==="loaded"&&<p className="game-load-status">Game page loaded. If the game area is still blank, use “Open in new tab” above.</p>}</section></div>}
+    {embeddedGame&&<div className="external-game-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setEmbeddedGame(null)}}><section className="external-game-shell"><header><div><b><EmbeddedIcon size={16}/> {embeddedGame.name}</b><span>{embeddedGame.htmlCode?.trim()?"Custom HTML game":`External game · ${embeddedGame.mode==="external-multiplayer"?"multiplayer":"single-player"}`}</span></div><div className="external-game-actions">{gameUrl(embeddedGame)&&<button className="primary-btn" onClick={()=>window.open(gameUrl(embeddedGame),"_blank","noopener,noreferrer")}>Open in new tab <ArrowRight size={14}/></button>}<button className="secondary-btn" onClick={()=>document.getElementById("nexus-external-game")?.requestFullscreen?.()}>Fullscreen</button><button className="quiet-btn" onClick={()=>setEmbeddedGame(null)}>Close</button></div></header><div id="nexus-external-game" ref={gameFrameHostRef} className="nexus-preloaded-game-host" />{gameLoadState==="loading"&&<p className="game-load-status">Loading {embeddedGame.name}… Some games need a few seconds to start.</p>}{gameLoadState==="slow"&&<p className="game-load-status game-load-warning">This game is taking longer than expected or may block embedding. Use “Open in new tab” above to try it directly.</p>}{gameLoadState==="loaded"&&<p className="game-load-status">Game page loaded. If the game area is still blank, use “Open in new tab” above.</p>}</section></div>}
     {selected&&<div className="game-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setSelected(null)}}><section className="game-modal"><button className="quiet-btn" onClick={()=>setSelected(null)}>Close</button><div className="game-modal-icon">{selected.icon}</div><div className="eyebrow">{selected.type} · {selected.players}</div><h2>{selected.name}</h2><p>{selected.description}</p><p className="muted">{selected.mode==="multiplayer"?"Create a lobby and invite friends with its code.":selected.mode==="single"?"A single-player game.":"This game is still being prepared for NEXUS."}</p>{selected.mode==="multiplayer"&&<button className="primary-btn" onClick={()=>{createLobby(selected.name);setSelected(null)}}>Play with friends <ArrowRight size={15}/></button>}</section></div>}
    </div>;
 }
