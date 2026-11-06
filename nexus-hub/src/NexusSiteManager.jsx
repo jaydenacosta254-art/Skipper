@@ -8,6 +8,7 @@ export default function NexusSiteManager({ games = [], announcements = [], setti
   const [newGame, setNewGame] = useState({ name:"", type:"Action", players:"Single-player", mode:"single", color:"blue", icon:"🎮", imageUrl:"", description:"", externalUrl:"", htmlCode:"", openMode:"embed" });
   const [announcement, setAnnouncement] = useState("");
   const [error, setError] = useState("");
+  const [previewGame, setPreviewGame] = useState(null);
   useEffect(() => { setDraftGames(games); setDraftAnnouncements(announcements); setDraftSettings({ allowGameSubmissions:true, showOnlineStats:true, ...settings }); }, [games, announcements, settings]);
 
   function addGame(e) {
@@ -99,7 +100,7 @@ export default function NexusSiteManager({ games = [], announcements = [], setti
         <textarea className="site-manager-description" aria-label="Game HTML code" rows={6} spellCheck={false} value={g.htmlCode||""} onChange={e=>updateGame(i,"htmlCode",e.target.value)} placeholder="Paste the full HTML game code here (optional if using a URL)"/>
         <select aria-label="Game opening method" value={g.htmlCode?.trim()?"embed":(g.openMode||(g.openUrl&&!g.externalUrl?"new-tab":"embed"))} disabled={!!g.htmlCode?.trim()} onChange={e=>updateGame(i,"openMode",e.target.value)}><option value="embed">Embed inside NEXUS</option><option value="new-tab">Open in a new tab</option></select>
         <input className="site-manager-description" aria-label="Description" value={g.description||""} onChange={e=>updateGame(i,"description",e.target.value)} placeholder="Description"/>
-        <button className="quiet-btn" onClick={()=>setDraftGames(old=>old.filter((_,n)=>n!==i))} aria-label={"Remove "+g.name}><Trash2 size={15}/> Remove</button>
+        <div className="site-manager-row-actions"><button type="button" className="secondary-btn" onClick={()=>setPreviewGame(g)}>Preview</button><button type="button" className="quiet-btn" onClick={()=>setDraftGames(old=>old.filter((_,n)=>n!==i))} aria-label={"Remove "+g.name}><Trash2 size={15}/> Remove</button></div>
       </div>)}
       <form className="site-manager-add" onSubmit={addGame}><h3><Plus size={16}/> Add a game</h3><div className="site-manager-fields">
         <input required placeholder="Game name" value={newGame.name} onChange={e=>setNewGame({...newGame,name:e.target.value})}/>
@@ -112,7 +113,7 @@ export default function NexusSiteManager({ games = [], announcements = [], setti
         <textarea className="site-manager-description" rows={7} spellCheck={false} placeholder="Or paste the full HTML game code here..." value={newGame.htmlCode} onChange={e=>setNewGame(old=>({...old,htmlCode:e.target.value,externalUrl:e.target.value.trim()?"":old.externalUrl,openMode:"embed"}))}/>
         <p className="muted site-manager-embed-note">New games open inside NEXUS. Use either a game URL or pasted HTML; entering one clears the other so the wrong version cannot load.</p>
         <input className="site-manager-description" placeholder="Description" value={newGame.description} onChange={e=>setNewGame({...newGame,description:e.target.value})}/>
-      </div><button className="secondary-btn"><Plus size={15}/> Add game</button></form>
+      </div><div className="site-manager-add-actions"><button className="secondary-btn"><Plus size={15}/> Add game</button><button type="button" className="quiet-btn" onClick={()=>setPreviewGame(newGame)}>Preview new game</button></div></form>
     </section>
     <section className="social-panel"><h2><Megaphone size={18}/> Homepage announcements</h2><p className="muted">Post a message that appears on the NEXUS home screen.</p><form className="site-manager-add" onSubmit={addAnnouncement}><input value={announcement} onChange={e=>setAnnouncement(e.target.value)} maxLength={180} placeholder="Write a homepage announcement..." /><button className="secondary-btn"><Plus size={15}/> Publish to draft</button></form>
       {draftAnnouncements.map(a=><div className="site-manager-announcement" key={a.id}><span>{a.text}</span><button className="icon-btn" onClick={()=>setDraftAnnouncements(old=>old.filter(x=>x.id!==a.id))} aria-label="Remove announcement"><X size={15}/></button></div>)}
@@ -121,6 +122,7 @@ export default function NexusSiteManager({ games = [], announcements = [], setti
       <label className="site-manager-toggle"><span><b>Allow game submissions</b><small>Let members submit games for admin review.</small></span><input type="checkbox" checked={!!draftSettings.allowGameSubmissions} onChange={e=>setDraftSettings(s=>({...s,allowGameSubmissions:e.target.checked}))}/></label>
       <label className="site-manager-toggle"><span><b>Show online stats on home</b><small>Display live community statistics.</small></span><input type="checkbox" checked={!!draftSettings.showOnlineStats} onChange={e=>setDraftSettings(s=>({...s,showOnlineStats:e.target.checked}))}/></label>
     </section>
+    {previewGame && <div className="external-game-backdrop site-manager-preview-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setPreviewGame(null);}}><section className="external-game-shell"><header><div><b><Gamepad2 size={16}/> {previewGame.name || "Game preview"}</b><span>Admin preview · Unsaved changes are shown</span></div><button type="button" className="quiet-btn" onClick={()=>setPreviewGame(null)}>Close</button></header>{(previewGame.externalUrl || previewGame.openUrl || previewGame.url) ? <iframe title={"Preview "+(previewGame.name||"game")} src={previewGame.externalUrl || previewGame.openUrl || previewGame.url} sandbox="allow-scripts allow-forms allow-pointer-lock allow-popups" allow="fullscreen; autoplay; gamepad" allowFullScreen/> : previewGame.htmlCode?.trim() ? <iframe title={"Preview "+(previewGame.name||"game")} srcDoc={previewGame.htmlCode} sandbox="allow-scripts allow-forms allow-pointer-lock allow-popups" allow="fullscreen; autoplay; gamepad" allowFullScreen/> : <div className="game-load-status game-load-warning">Add a game URL or paste HTML code before previewing.</div>}</section></div>}
     {error && <p className="form-error">{error}</p>}
     <div className="site-manager-bottom"><button className="primary-btn" onClick={save} disabled={busy}><Save size={16}/>{busy ? "Saving..." : "Save all changes"}</button></div>
   </div>;
