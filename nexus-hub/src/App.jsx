@@ -218,6 +218,94 @@ export default function App() {
   const [siteConfigBusy, setSiteConfigBusy] = useState(false);
   const [dailyUpdates, setDailyUpdates] = useState([]);
 
+  // Warm the game library as soon as NEXUS receives its game list. Images and
+  // network connections are prepared first; a small number of hidden game
+  // frames then warm their browser cache without opening visible game windows.
+  useEffect(() => {
+    if (!Array.isArray(siteGames) || !siteGames.length) return;
+    let cancelled = false;
+    const warmFrames = [];
+    const links = [];
+    const urls = siteGames
+      .map(game => game.externalUrl || game.openUrl || game.url || "")
+      .filter(Boolean);
+    const origins = [...new Set(urls.map(value => {
+      try { return new URL(value, window.location.href).origin; } catch { return ""; }
+    }).filter(origin => origin && origin !== window.location.origin))];
+
+    origins.forEach(origin => {
+      const link = document.createElement("link");
+      link.rel = "preconnect";
+      link.href = origin;
+      link.crossOrigin = "anonymous";
+      document.head.appendChild(link);
+      links.push(link);
+    });
+
+    siteGames.forEach(game => {
+      const imageUrl = game.imageUrl;
+      if (imageUrl) {
+        const image = new Image();
+        image.decoding = "async";
+        image.src = imageUrl;
+      }
+    });
+
+    const candidates = siteGames.filter(game =>
+      (game.externalUrl || game.openUrl || game.url || "").trim() || game.htmlCode?.trim()
+    );
+    let cursor = 0;
+    const active = new Set();
+    const launchNext = () => {
+      if (cancelled || cursor >= candidates.length || active.size >= 3) return;
+      const game = candidates[cursor++];
+      const frame = document.createElement("iframe");
+      frame.title = "NEXUS preload: " + (game.name || "game");
+      frame.tabIndex = -1;
+      frame.setAttribute("aria-hidden", "true");
+      frame.setAttribute("sandbox", game.allowSameOrigin === true
+        ? "allow-scripts allow-same-origin allow-forms allow-pointer-lock"
+        : "allow-scripts allow-forms allow-pointer-lock");
+      frame.style.cssText = "position:fixed;left:-10000px;top:0;width:2px;height:2px;opacity:0;pointer-events:none;border:0;";
+      active.add(frame);
+      warmFrames.push(frame);
+      document.body.appendChild(frame);
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        active.delete(frame);
+        frame.remove();
+        if (!cancelled) launchNext();
+      };
+      frame.addEventListener("load", finish, { once: true });
+      const timeout = window.setTimeout(finish, 9000);
+      frame.addEventListener("load", () => window.clearTimeout(timeout), { once: true });
+      const url = game.externalUrl || game.openUrl || game.url || "";
+      if (url) frame.src = url;
+      else frame.srcdoc = game.htmlCode;
+    };
+
+    const start = () => {
+      if (cancelled) return;
+      launchNext();
+      launchNext();
+      launchNext();
+    };
+    let idleId;
+    let timerId;
+    if ("requestIdleCallback" in window) idleId = window.requestIdleCallback(start, { timeout: 1800 });
+    else timerId = window.setTimeout(start, 900);
+
+    return () => {
+      cancelled = true;
+      if (idleId && "cancelIdleCallback" in window) window.cancelIdleCallback(idleId);
+      if (timerId) window.clearTimeout(timerId);
+      warmFrames.forEach(frame => frame.remove());
+      links.forEach(link => link.remove());
+    };
+  }, [siteGames]);
+
   const username = profile?.username || guestProfile?.username || guest || "Guest";
   const isAdmin = profile?.role === "admin";
 
