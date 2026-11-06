@@ -140,7 +140,11 @@ const starterGames = [
   }
 ];;
 
-// Hidden game frames stay alive after preloading and are reused on launch.\nconst nexusPreloadedGameFrames = new Map();\nlet nexusPreloadContainer = null;\n\nconst PROFILE_BACKGROUNDS = {
+// Hidden game frames stay alive after preloading and are reused on launch.
+const nexusPreloadedGameFrames = new Map();
+let nexusPreloadContainer = null;
+
+const PROFILE_BACKGROUNDS = {
   violet: "linear-gradient(135deg, #6546b8, #24224f)",
   sunset: "linear-gradient(135deg, #e47761, #68418e)",
   ocean: "linear-gradient(135deg, #167b9e, #21365e)",
