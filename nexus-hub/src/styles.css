@@ -395,3 +395,17 @@ button,input,textarea,select{max-width:100%}
 .game-art-uploaded-image{width:100%;height:100%;object-fit:cover;border-radius:inherit}
 
 .game-load-status{margin:0;padding:10px 13px;font-size:11px;line-height:1.45;color:#aab7cc;background:#121b2a;border-top:1px solid #30394c}.game-load-warning{color:#ffd18a;background:#2a2115}.external-game-actions .primary-btn{display:inline-flex;align-items:center;gap:6px}
+
+
+/* Game library favorites and admin preview controls */
+.favorite-game-btn{display:inline-flex;align-items:center;gap:6px;width:max-content;max-width:100%;margin-top:8px;padding:6px 9px;border:1px solid #39435a;border-radius:8px;background:#151c2b;color:#aab5ca;font:600 10px 'DM Sans';cursor:pointer}
+.favorite-game-btn:hover,.favorite-game-btn.is-favorite{border-color:#8875e8;background:rgba(139,92,246,.14);color:#c9baff}
+.favorite-games-section h2{display:flex;align-items:center;gap:8px}
+.favorite-games-section h2 svg{color:#b9a4ff}
+.site-manager-row-actions,.site-manager-add-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.site-manager-preview-backdrop{z-index:120}
+.site-manager-preview-backdrop .external-game-shell{width:min(1100px,94vw);height:min(760px,90vh)}
+.site-manager-preview-backdrop .external-game-shell iframe{display:block;width:100%;height:calc(100% - 72px);min-height:260px;border:0;background:#080b12}
+.site-manager-preview-backdrop .external-game-shell header{justify-content:space-between}
+.site-manager-preview-backdrop .external-game-shell header>div:first-child{display:flex;flex-direction:column;gap:4px}
+.site-manager-preview-backdrop .external-game-shell header span{font-size:10px;color:#9ca6bd}
