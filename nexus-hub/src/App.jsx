@@ -585,7 +585,13 @@ export default function App() {
   useEffect(() => {
     if (!username || username === "Guest") return;
     const s = io(API || window.location.origin, {
-      transports: ["websocket", "polling"],
+      // Start with HTTP polling so chat still connects when a network or host
+      // blocks the WebSocket handshake. Socket.IO upgrades to WebSocket when
+      // the connection supports it.
+      transports: ["polling", "websocket"],
+      tryAllTransports: true,
+      timeout: 20000,
+      reconnection: true,
       auth: {
         accessToken: session?.access_token || "",
         guestName: username
