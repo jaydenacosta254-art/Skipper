@@ -585,13 +585,15 @@ export default function App() {
   useEffect(() => {
     if (!username || username === "Guest") return;
     const s = io(API || window.location.origin, {
-      // Start with HTTP polling so chat still connects when a network or host
-      // blocks the WebSocket handshake. Socket.IO upgrades to WebSocket when
-      // the connection supports it.
-      transports: ["polling", "websocket"],
-      tryAllTransports: true,
-      timeout: 20000,
+      // Keep chat on HTTP long-polling for now. This avoids failed WebSocket
+      // upgrades while the Render service wakes or when an intermediary blocks them.
+      transports: ["polling"],
+      upgrade: false,
+      // Allow enough time for a sleeping Render instance to start.
+      timeout: 90000,
       reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
       auth: {
         accessToken: session?.access_token || "",
         guestName: username
